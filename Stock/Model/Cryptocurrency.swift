@@ -30,6 +30,10 @@ class Cryptocurrency {
        self.crypto = crypto
     }
     
+    func name()->String {
+        let index = crypto.hashValue
+        return crypto.name[index]
+    }
     func getDisplayFormat(number: Double) -> String {
         
         let num = abs(Double(number))

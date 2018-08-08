@@ -14,7 +14,7 @@ import SwiftSoup
 
 class CoinMarketCap {
     
-    let crypto = "bitcoin"
+    var crypto = "bitcoin"
     
     //Properties to get current price
     let priceParamerer: [String: String] = ["convert": "USD"]
@@ -25,47 +25,13 @@ class CoinMarketCap {
     var endDate   = "20180728"
     
     //Properties to get historical data
-    private lazy var historicalUrl = "https://coinmarketcap.com/currencies/"+crypto+"/historical-data/?start=" + startDate + "&end=" + endDate
+    lazy var historicalUrl = "https://coinmarketcap.com/currencies/"+crypto+"/historical-data/?start=" + startDate + "&end=" + endDate
     
     //Months
     let monthLookUp = [1: 31, 2: 28, 3: 31,
                   4: 30, 5: 31, 6: 30,
                   7: 31, 8: 31, 9: 30,
                   10: 31, 11: 30, 12: 31]
-    
-    let oneWeek = 8
-    let threeMonth = 91
-    let sixMonth  = 181
-    let nineMonth = 273
-    let oneYear   = 365
-    
-    var allTime: Int {
-        get{
-            let (year,month,day) = getDate()
-            
-            //Get the number of days from year
-            var y =  year - 2013
-            y = 365 * y
-            
-            print("This is \(y)")
-            
-            //Get the number of days from month
-            
-            var m = 0
-            if month - 4 >= 1 {
-                m = abs(month - 4)
-                m = monthLookUp[m]!*m
-            }
-          
-           /* var d = 0
-            if day - 28 >= 1 {
-                d = day - 28
-            }*/
-            
-            return y + m
-        }
-    }
-    
     
     func getHTML(url: String)->String? {
         
@@ -88,6 +54,7 @@ class CoinMarketCap {
     
     func getHistory(html: String)-> [HistoricalData]{
         
+        //Date follow by an a dictionary of (String: Double)
         var hloc = [HistoricalData]()
         
         do {
@@ -99,27 +66,18 @@ class CoinMarketCap {
             let tbodyDoc         = try SwiftSoup.parseBodyFragment(table.outerHtml())
             let elements         = try tbodyDoc.getElementsByTag("td").array()
             
-            print(elements.count-1)
             //Fill the array with the data
             var i = 0
             while ( i < elements.count){
-                let data = HistoricalData()
                 
-                data.date       = try elements[0 + i].html()
-                data.open       = Double(try  elements[1 + i].html())
-                data.high       = Double(try  elements[2 + i].html())
-                data.low        = Double(try  elements[3 + i].html())
-                data.close      = Double(try  elements[4 + i].html())
-                data.volume     = try  elements[5 + i].html()
-                data.martketCap = try  elements[6 + i].html()
+               let data = HistoricalData(date: try elements[0 + i].html(),
+                                         open: Double(try  elements[1 + i].html())!,
+                                         high: Double(try  elements[2 + i].html())!,
+                                         low:  Double(try  elements[3 + i].html())!,
+                                         close:Double(try  elements[4 + i].html())!)
                 
-                i += 7
                 hloc.append(data)
-            }
-            hloc.reverse()
-            
-            for i in hloc {
-                print("\(i.date)  \(i.open)  \(i.high)  \(i.low)  \(i.close)  \(i.volume)  \(i.martketCap)")
+                i += 7
             }
         }
         catch {
@@ -231,5 +189,55 @@ class CoinMarketCap {
         else {
            return "\(year)\(month)\(day)"
         }
+    }
+    
+    func yyyyMMdd(str: String) -> String {
+       
+        //Converte strDate to a date object
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MMM dd, yyyy"
+        dateFormatter.timeZone = TimeZone.current
+        dateFormatter.locale = Locale.current
+        let date =  dateFormatter.date(from: str)
+        
+        //Change date format to MMM d, yyyy
+        dateFormatter.dateFormat = "yyyyMMdd"
+        let goodDate = dateFormatter.string(from: date!)
+        
+        return goodDate
+    }
+    
+    func getYesterday()->String{
+        
+        //Get the date of yesterday
+        var (y,m,d) = getDate()
+        d -= 1
+        
+        var month = ""
+        var day   = ""
+        let year  = "\(y)"
+        
+        if m < 10 {
+           month = "0\(m)"
+        }
+        
+        if d < 10 {
+            day = "0\(d)"
+        }
+        
+        let strDate = "0\(month)-0\(day)-\(year)"
+        
+        //Converte strDate to a date object
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MM/dd/yyyy"
+        dateFormatter.timeZone = TimeZone.current
+        dateFormatter.locale = Locale.current
+        let date =  dateFormatter.date(from: strDate)
+        
+        //Change date format to MMM d, yyyy
+        dateFormatter.dateFormat = "MMM dd, yyyy"
+        let goodDate = dateFormatter.string(from: date!)
+        
+        return goodDate
     }
 }

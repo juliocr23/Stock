@@ -12,12 +12,11 @@ pod 'SVProgressHUD'
 pod 'SwiftyJSON'
 
 pod 'Charts', :git => 'https://github.com/danielgindi/Charts.git', :branch => 'master'
-pod 'RealmSwift', '~> 3.7.1'
 pod 'SwiftSoup'
 pod 'Firebase'
 pod 'Firebase/Auth'
 pod 'Firebase/Database'
-pod 'SVProgressHUD'
+pod 'Firebase/Firestore'
 pod 'ChameleonFramework'
 
 end

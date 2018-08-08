@@ -9,7 +9,7 @@
 import Foundation
 import Charts
 
-class Graph {
+struct Graph {
     
     var data: [HistoricalData]?
     
@@ -25,44 +25,45 @@ class Graph {
         return values
     }
     
-    func getData()->ChartData{
-        return getCandleChartData()
-    }
     
-    
-    func getCandleChartData() -> CandleChartData{
+  func getData() -> ChartData{
         
         var entries = [CandleChartDataEntry]()
-        
-        if let hloc = data{
+    
+        if let OHLC = data {
             
-            for i in 0...hloc.count-1 {
+            //get entries from data
+            for i in 0...OHLC.count-1 {
                 
-                let entry = CandleChartDataEntry(x:Double(i), shadowH: hloc[i].high,
-                                                 shadowL: hloc[i].low, open: hloc[i].open,
-                                                 close: hloc[i].close)
+                let entry = CandleChartDataEntry(x:Double(i),
+                                                 shadowH: OHLC[i].high,
+                                                 shadowL: OHLC[i].low,
+                                                    open: OHLC[i].open,
+                                                   close: OHLC[i].close)
                 entries.append(entry)
             }
+            
         }
         
-        let set  = CandleChartDataSet(values: entries, label: "Data Set")
+        //Set the entries
+        let set  = CandleChartDataSet(values: entries, label: "")
+    
         set.drawValuesEnabled = false
+        set.axisDependency = .left
+    
+        set.drawIconsEnabled = false
+    
+        set.shadowColor = .white
+        set.shadowWidth = 0.7
+    
+        set.decreasingColor = UIColor.flatRedColorDark()
+        set.decreasingFilled = true
+    
+        set.increasingColor = UIColor.flatGreen()
+        set.increasingFilled = true
+    
+        set.neutralColor = .blue
+        
         return  CandleChartData(dataSet: set)
     }
-    
-    
-    /*func getBarChartData() -> BarChartData{
-
-        var entries = [BarChartDataEntry]()
-         
-         for i in 0...price.count-1 {
-            let entry = BarChartDataEntry(x: Double(i), y:price[i])
-            entries.append(entry)
-         }
-         
-         let dataSet = BarChartDataSet(values: entries, label: "Volume")
-         let data = BarChartData(dataSets: [dataSet])
-        
-        return data
-    }*/
 }

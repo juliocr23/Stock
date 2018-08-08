@@ -10,19 +10,13 @@ import Alamofire
 import SwiftyJSON
 import Charts
 import SVProgressHUD
+import FirebaseFirestore
+import ChameleonFramework
 
-class ViewController: UIViewController{
+
+class ViewController: UIViewController, SearchDelegate{
     
-    
-    //TODO when a button is pressed for a different graph I get the same url. ????
-    
-    
-    //Crypto currency and graph being shown
-    var cryptoCurrency = Cryptocurrency(crypto: .Bitcoin)
-    var chart = Graph()
-    
-    //Get Data from coinMarketCap
-    lazy var coinMarket = CoinMarketCap()
+    var DB = Database()
     var index = 0
     
     @IBOutlet weak var rank: UILabel!
@@ -32,30 +26,32 @@ class ViewController: UIViewController{
     @IBOutlet weak var maxSupply: UILabel!
     @IBOutlet weak var price: UILabel!
     @IBOutlet weak var candleStickGraph: CandleStickChartView!
-    
-    
-    
     @IBOutlet var timeGraphButtons: [UIButton]!
     
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+      
         SVProgressHUD.show()
-        timeGraphButtons[index].backgroundColor = UIColor.lightGray
         
         getCurrencyValue(url: getTickerURL(),
-                         parameters: coinMarket.priceParamerer,
+                         parameters: DB.coinMarket.priceParamerer,
                          updateData: updateCurrencyData)
         
         candleStickGraph.setNeedsDisplay()
         
-        let url = coinMarket.getUrl(y: 0, m: 0, d: coinMarket.oneWeek)
-        updateGraph(url: url)
+        //Update DB data if there is an update
+        DB.readDateFromDB(getData: fillGraph)
         
     }
     
-    //MARK: - Get Crypto Value
+    func readL(data: [String: [String: Double]]){
+        print("Display")
+        print(DB.sort(data: data))
+    }
+    
+    
+    //MARK: - Get JSON from CoinMarket
     /**************************************************************************/
     
     func getCurrencyValue(url: String, parameters: [String: String], updateData: @escaping (JSON) -> Void) {
@@ -75,66 +71,75 @@ class ViewController: UIViewController{
     }
     
     //Mark: - Update View
+    /**************************************************************************/
     func updateCurrencyData(json: JSON){
         
-        cryptoCurrency.price              = json["data"]["quotes"]["USD"]["price"].doubleValue
-        cryptoCurrency.volume             = json["data"]["quotes"]["USD"]["volume_24h"].intValue
-        cryptoCurrency.marketCap          = json["data"]["quotes"]["USD"]["market_cap"].doubleValue
-        cryptoCurrency.change             = json["data"]["quotes"]["USD"]["percent_change_24h"].doubleValue
-        cryptoCurrency.circulatingSupply  = json["data"]["circulating_supply"].intValue
-        cryptoCurrency.maxSupply          = json["data"]["max_supply"].intValue
-        cryptoCurrency.rank               = json["data"]["rank"].intValue
+        DB.cryptocurrency.price              = json["data"]["quotes"]["USD"]["price"].doubleValue.rounded(places: 2)
+        DB.cryptocurrency.volume             = json["data"]["quotes"]["USD"]["volume_24h"].intValue
+        DB.cryptocurrency.marketCap          = json["data"]["quotes"]["USD"]["market_cap"].doubleValue
+        DB.cryptocurrency.change             = json["data"]["quotes"]["USD"]["percent_change_24h"].doubleValue
+        DB.cryptocurrency.circulatingSupply  = json["data"]["circulating_supply"].intValue
+        DB.cryptocurrency.maxSupply          = json["data"]["max_supply"].intValue
+        DB.cryptocurrency.rank               = json["data"]["rank"].intValue
+        
+        updateUI()
+    }
+    
+    func updateUI(){
+        
+        var display = DB.cryptocurrency.getDisplayFormat(number: Double(DB.cryptocurrency.volume!))
+        volume.text = display
+        
+        display = DB.cryptocurrency.getDisplayFormat(number: Double(DB.cryptocurrency.marketCap!))
+        marketCap.text = display
+        
+        display =  DB.cryptocurrency.getDisplayFormat(number: Double(DB.cryptocurrency.maxSupply!))
+        maxSupply.text = display
+        
+        display = DB.cryptocurrency.getDisplayFormat(number: Double(DB.cryptocurrency.circulatingSupply!))
+        circulatingSupply.text = display
+        
+        rank.text = "Rank " + String(DB.cryptocurrency.rank!)
+        price.text = "$" + String(DB.cryptocurrency.price!) + " USD"
         
     }
     
-   
-    func updateUI(data: ChartData){
+    func fillGraph(data: [String: [String: Double]]){
         
-        var display = cryptoCurrency.getDisplayFormat(number: Double(cryptoCurrency.volume!))
-        volume.text = display
+        let sortedKeys = DB.sort(data: data)
+        DB.chart.data = [HistoricalData]()
         
-        display = cryptoCurrency.getDisplayFormat(number: Double(cryptoCurrency.marketCap!))
-        marketCap.text = display
+        //Read all Data from sorted keys
+        if DB.period == -1{
+            DB.period = sortedKeys.count
+        }
         
-        display =  cryptoCurrency.getDisplayFormat(number: Double(cryptoCurrency.maxSupply!))
-        maxSupply.text = display
+        for i in 0...DB.period-1 where sortedKeys.count >= DB.period {
+            
+            let key = sortedKeys[i]
+            let temp = data[key]
+            
+            let historicalData = HistoricalData(date: key,
+                                                open: temp!["open"]!,
+                                                high: temp!["high"]!,
+                                                low:  temp!["low"]!,
+                                                close: temp!["close"]!)
+            DB.chart.data?.append(historicalData)
+        }
         
-        display = cryptoCurrency.getDisplayFormat(number: Double(cryptoCurrency.circulatingSupply!))
-        circulatingSupply.text = display
-        
-        rank.text = "Rank " + String(cryptoCurrency.rank!)
-        price.text = "$" + String(cryptoCurrency.price!) + " USD"
-        
-        candleStickGraph.data = data
+        updateGraph()
+    }
+    
+    func updateGraph(){
+        candleStickGraph.data = DB.chart.getData()
         candleStickGraph.leftAxis.enabled = false
         candleStickGraph.rightAxis.enabled = false
         candleStickGraph.xAxis.enabled = false
+        
+        setTitle()
         SVProgressHUD.dismiss()
-        
     }
     
-    func updateGraph(url: String){
-        
-        DispatchQueue.global(qos: .userInteractive).async {
-            
-            let html =  self.coinMarket.getHTML(url: url)
-            
-            if html != nil {
-                
-                self.chart.data = self.coinMarket.getHistory(html: html!)
-                
-                let data  =  self.chart.getData()
-                DispatchQueue.main.async {
-                    self.updateUI(data: data)
-                }
-            }
-        }
-    }
-    
-    
-    func getTickerURL()->String{
-        return  coinMarket.priceUrl+cryptoCurrency.crypto.getId()+"/"
-    }
     
     //MARK: - Graph Events
     /**************************************************************************/
@@ -142,49 +147,64 @@ class ViewController: UIViewController{
         
         if timeGraphButtons[index] != sender {
             
-            timeGraphButtons[index].backgroundColor = UIColor.white
+            timeGraphButtons[index].backgroundColor = UIColor.flatBlue()
             index = 0
-            timeGraphButtons[index].backgroundColor = UIColor.lightGray
+            timeGraphButtons[index].backgroundColor = UIColor.flatPowderBlueColorDark()
 
             
             candleStickGraph.clear()
-            
             SVProgressHUD.show()
             
-            let url = coinMarket.getUrl(y: 0, m: 0, d: 7)
-            updateGraph(url: url)
+            DB.period = 7
+            
+            if DB.data == nil {
+                DB.readDateFromDB(getData: fillGraph)
+            }else{
+                fillGraph(data: DB.data!)
+            }
         }
     }
     
     @IBAction func threeMonth(_ sender: UIButton) {
         
         if timeGraphButtons[index] != sender {
-            timeGraphButtons[index].backgroundColor = UIColor.white
-            index = 2
-            timeGraphButtons[index].backgroundColor = UIColor.lightGray
+            timeGraphButtons[index].backgroundColor = UIColor.flatBlue()
+            index = 1
             
+            timeGraphButtons[index].backgroundColor = UIColor.flatPowderBlueColorDark()
             candleStickGraph.clear()
-            
             SVProgressHUD.show()
-            let url = coinMarket.getUrl(y: 0, m: 3, d:0 )
-            updateGraph(url: url)
+            
+            DB.period = 90
+            
+            if DB.data == nil {
+                DB.readDateFromDB(getData: fillGraph)
+            }else{
+                fillGraph(data: DB.data!)
+            }
+            
+            
         }
-        
-        
     }
     
     @IBAction func sixMonth(_ sender: UIButton) {
         
         if timeGraphButtons[index] != sender {
-            timeGraphButtons[index].backgroundColor = UIColor.white
-            index = 3
-            timeGraphButtons[index].backgroundColor = UIColor.lightGray
             
+            timeGraphButtons[index].backgroundColor = UIColor.flatBlue()
+            index = 2
+            
+            timeGraphButtons[index].backgroundColor = UIColor.flatPowderBlueColorDark()
             candleStickGraph.clear()
-            
             SVProgressHUD.show()
-            let url = coinMarket.getUrl(y: 0, m: 6, d: 0)
-            updateGraph(url: url)
+            
+            DB.period = 182
+            
+            if DB.data == nil {
+                DB.readDateFromDB(getData: fillGraph)
+            }else{
+                fillGraph(data: DB.data!)
+            }
         }
     }
     
@@ -192,15 +212,21 @@ class ViewController: UIViewController{
         
         if timeGraphButtons[index] != sender {
             
-            timeGraphButtons[index].backgroundColor = UIColor.white
-            index = 4
-            timeGraphButtons[index].backgroundColor = UIColor.lightGray
-           
-            candleStickGraph.clear()
+            timeGraphButtons[index].backgroundColor = UIColor.flatBlue()
+            index = 3
             
+            timeGraphButtons[index].backgroundColor = UIColor.flatPowderBlueColorDark()
+            candleStickGraph.clear()
             SVProgressHUD.show()
-            let url = coinMarket.getUrl(y: 0, m: 9, d: 0)
-            updateGraph(url: url)
+            
+            DB.period = 273
+           
+            
+            if DB.data == nil {
+                DB.readDateFromDB(getData: fillGraph)
+            }else{
+                fillGraph(data: DB.data!)
+            }
         }
     }
     
@@ -208,14 +234,21 @@ class ViewController: UIViewController{
         
         if timeGraphButtons[index] != sender {
             
-            timeGraphButtons[index].backgroundColor = UIColor.white
-            index = 5
-            timeGraphButtons[index].backgroundColor = UIColor.lightGray
-            candleStickGraph.clear()
+            timeGraphButtons[index].backgroundColor = UIColor.flatBlue()
+            index = 4
             
+            timeGraphButtons[index].backgroundColor = UIColor.flatPowderBlueColorDark()
+            candleStickGraph.clear()
             SVProgressHUD.show()
-            let url = coinMarket.getUrl(y: 1, m: 0, d: 0)
-            updateGraph(url: url)
+            
+            DB.period = 365
+           
+            
+            if DB.data == nil {
+                DB.readDateFromDB(getData: fillGraph)
+            }else{
+                fillGraph(data: DB.data!)
+            }
         }
     }
     
@@ -223,16 +256,79 @@ class ViewController: UIViewController{
         
         if timeGraphButtons[index] != sender {
             
-            timeGraphButtons[index].backgroundColor = UIColor.white
-            index = 6
-            timeGraphButtons[index].backgroundColor = UIColor.lightGray
+            timeGraphButtons[index].backgroundColor = UIColor.flatBlue()
+            index = 5
             
+            timeGraphButtons[index].backgroundColor = UIColor.flatPowderBlueColorDark()
             candleStickGraph.clear()
-            
             SVProgressHUD.show()
-            let url = coinMarket.getAllTimeUrl()
-            updateGraph(url: url)
+            
+            DB.period = -1
+           
+            if DB.data == nil {
+                DB.readDateFromDB(getData: fillGraph)
+            }else{
+                fillGraph(data: DB.data!)
+            }
         }
+    }
+    
+    func setTitle(){
+           self.title = DB.cryptocurrency.name() + " (" + DB.cryptocurrency.crypto.getSymbol() +  ")"
+    }
+    
+    func getTickerURL()->String{
+        return  DB.coinMarket.priceUrl+DB.cryptocurrency.crypto.getId()+"/"
+    }
+    
+    //Mark - SearchDelegate
+    //******************************************************************************************\\
+    func selectedCryptocurrency(cryp: CryptocurrencyBank) {
+        
+        //Show progress
+       SVProgressHUD.show()
+        
+        //Clear graph
+       candleStickGraph.clear()
+        
+        //Set selected cryptocurrency
+       DB.cryptocurrency.crypto = cryp
+      
+        //Set cryptocurrency name
+       let crypName =  DB.cryptocurrency.name().lowercased()
+       DB.coinMarket.crypto = crypName
+        
+        print(DB.coinMarket.priceUrl)
+        //Read data from DB and fill Graph
+       DB.readDateFromDB(getData: fillGraph)
+        
+        //get current price
+       getCurrencyValue(url: getTickerURL(),
+                         parameters: DB.coinMarket.priceParamerer,
+                         updateData: updateCurrencyData)
+    }
+    
+    
+    //Mark - Segues
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?){
+        
+        if segue.identifier == "goToSearch" {
+            
+            let destinationVC =  segue.destination as! SearchViewController
+
+            destinationVC.delegate = self
+             print("Rosario")
+            
+        }
+    }
+}
+
+extension Double {
+    
+    /// Rounds the double to decimal places value
+    func rounded(places:Int) -> Double {
+        let divisor = pow(10.0, Double(places))
+        return (self * divisor).rounded() / divisor
     }
 }
 

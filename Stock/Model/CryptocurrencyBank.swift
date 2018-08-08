@@ -7,35 +7,57 @@
 //
 
 import Foundation
+import UIKit
 
-enum CryptocurrencyBank :String {
+enum CryptocurrencyBank : String {
     
     case Bitcoin       = "BTC"
-    case Litecoin      = "LTC"
     case Ethereum      = "ETH"
     case XRP           = "XPR"
     case BitcoinCash   = "BCH"
+    case Litecoin      = "LTC"
     case EOS           = "EOS"
     case Stellar       = "XML"
     case Cardano       = "ADA"
     case IOTA          = "MIOTA"
     case Tether        = "USDT"
     
-    var availableCurrency: [String] {
+    var name: [String] {
         get {
-            return ["Bitcoin","Ethereum","XRP","BitcoinCash","EOS",
-                    "LiteCoin","Stellar","Cardano","IOTA","Tether"]
+            return ["Bitcoin","Ethereum","XRP","Bitcoin Cash","EOS",
+                    "Litecoin","Stellar","Cardano","IOTA","Tether"]
+        }
+    }
+
+    var image: [UIImage?] {
+        get {
+            return
+                [
+                   UIImage(named: "bitcoin"),
+                   UIImage(named: "ethereum"),
+                   UIImage(named: "xrp"),
+                   UIImage(named: "bitcoinCash"),
+                   UIImage(named: "eos"),
+                   UIImage(named: "litecoin"),
+                   UIImage(named: "stellar"),
+                   UIImage(named: "cardano"),
+                   UIImage(named: "iota"),
+                   UIImage(named: "tether")
+                ]
         }
     }
     
+    //var image
     func getSymbol() ->String{
         return self.rawValue
     }
-    
+    //Needed for getting crypt from coin market
     func getId() -> String {
         return String(self.hashValue+1)
     }
     
+    
+    //Get cryptocurrencies by the hashValue
     func get(number: Int) -> CryptocurrencyBank {
         if CryptocurrencyBank.Bitcoin.hashValue == number {
             return CryptocurrencyBank.Bitcoin
