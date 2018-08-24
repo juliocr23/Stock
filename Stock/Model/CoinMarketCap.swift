@@ -219,13 +219,17 @@ class CoinMarketCap {
         
         if m < 10 {
            month = "0\(m)"
+        } else {
+            month = "\(m)"
         }
         
         if d < 10 {
             day = "0\(d)"
+        } else{
+            day = "\(d)"
         }
         
-        let strDate = "0\(month)-0\(day)-\(year)"
+        let strDate = "\(month)-\(day)-\(year)"
         
         //Converte strDate to a date object
         let dateFormatter = DateFormatter()

@@ -1,73 +1,29 @@
 //
-//  Currency.swift
+//  Cryptocurrency.swift
 //  Stock
 //
-//  Created by Julio Rosario on 7/14/18.
+//  Created by Julio Rosario on 8/13/18.
 //  Copyright © 2018 Julio Rosario. All rights reserved.
 //
 
 import Foundation
 
 class Cryptocurrency {
-
-    var crypto: CryptocurrencyBank
     
-    var price: Double?
+    var name:    String = ""
+    var symbol:  String = ""
     
-    var volume: Int?
+    var volume:            Int = 0
+    var circulatingSupply: Int = 0
+    var maxSupply:         Int = 0
+    var rank:              Int = 0
     
-    var circulatingSupply: Int?
+    var price:     Double = 0
+    var change:    Double = 0
+    var marketCap: Double = 0
     
-    var change: Double?
-    
-    var marketCap: Double?
-    
-    var maxSupply: Int?
-    
-    var rank: Int?
-    
-    init(crypto: CryptocurrencyBank) {
-       self.crypto = crypto
+    init(name: String) {
+      self.name = name
     }
-    
-    func name()->String {
-        let index = crypto.hashValue
-        return crypto.name[index]
-    }
-    func getDisplayFormat(number: Double) -> String {
-        
-        let num = abs(Double(number))
-        let sign = (number < 0) ? "-" : ""
-        
-        switch number {
-            
-        case 1_000_000_000...:
-            var formatted = num / 1_000_000_000
-            formatted = formatted.truncate(places: 2)
-            return "$\(sign)\(formatted) B"
-            
-        case 1_000_000...:
-            var formatted = num / 1_000_000
-            formatted = formatted.truncate(places: 2)
-            return "$\(sign)\(formatted) M"
-            
-        case 1_000...:
-            var formatted = num / 1_000
-            formatted = formatted.truncate(places: 2)
-            return "$\(sign)\(formatted) K"
-            
-        case 0...:
-            return "$\(number)"
-            
-        default:
-            return "$\(sign)\(number)"
-            
-        }
-    }
-}
-
-extension Double {
-    func truncate(places: Int) -> Double {
-        return Double(floor(pow(10.0, Double(places)) * self)/pow(10.0, Double(places)))
-    }
+   
 }
