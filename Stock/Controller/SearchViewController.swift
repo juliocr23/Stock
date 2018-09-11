@@ -10,12 +10,12 @@ import UIKit
 
 
 protocol SearchDelegate {
-    func selectedCryptocurrency(name: String)
+    func selectedCryptocurrency(name: String,symbol: String)
 }
 
 class SearchViewController: UITableViewController, UISearchBarDelegate {
     
-    var cryptocurrencies = CryptocurrencyBank.name
+    var cryptocurrencies = Cryptocurrency.availableCryptos
     
     var delegate : SearchDelegate?
 
@@ -31,7 +31,9 @@ class SearchViewController: UITableViewController, UISearchBarDelegate {
     //Mark - Specify what happend when a row is selected
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        delegate?.selectedCryptocurrency(name: cryptocurrencies[indexPath.row])
+        delegate?.selectedCryptocurrency(name: cryptocurrencies[indexPath.row].name,
+                                        symbol: cryptocurrencies[indexPath.row].symbol)
+        
         self.navigationController?.popViewController(animated: true)
     }
     
@@ -41,15 +43,12 @@ class SearchViewController: UITableViewController, UISearchBarDelegate {
         let cell = tableView.dequeueReusableCell(withIdentifier: "crypCells", for: indexPath)
         cell.backgroundColor = UIColor.flatBlue()
         
-        let name = cryptocurrencies[indexPath.row]
+        let name = cryptocurrencies[indexPath.row].name
         
         //Set the text and image
         cell.textLabel?.text = name
         cell.textLabel?.textColor = UIColor.white
         cell.imageView?.image = UIImage(named: name)
-        
-        //cell.addButton
-        
         
         return cell
     }
@@ -64,18 +63,18 @@ class SearchViewController: UITableViewController, UISearchBarDelegate {
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         
         if searchText.isEmpty {
-            cryptocurrencies = CryptocurrencyBank.name
+            cryptocurrencies = Cryptocurrency.availableCryptos
         }
         else {
-            var temp = [String]()
-            for name in CryptocurrencyBank.name {
+            var temp = [Cryptocurrency]()
+            for value in Cryptocurrency.availableCryptos {
                 
                 //Convert to lower case
-               let  str1  = name.lowercased()
+               let  str1  = value.name.lowercased()
                let  str2  = searchText.lowercased()
                 
                 if str1.matches(str2) {
-                    temp.append(name)
+                    temp.append(Cryptocurrency(name: value.name,symbol: value.symbol))
                 }
             }
             cryptocurrencies = temp

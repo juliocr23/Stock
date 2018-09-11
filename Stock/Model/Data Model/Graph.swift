@@ -11,7 +11,7 @@ import Charts
 
 struct Graph {
     
-    var data: [HistoricalData]?
+    var data =  [FirestoreData]()
     
     func dataEntries(data: [Double] )->[BarChartDataEntry] {
    
@@ -30,19 +30,18 @@ struct Graph {
         
         var entries = [CandleChartDataEntry]()
     
-        if let OHLC = data {
+        if  data.count > 0 {
             
             //get entries from data
-            for i in 0...OHLC.count-1 {
+            for i in 0...data.count-1 {
                 
                 let entry = CandleChartDataEntry(x:Double(i),
-                                                 shadowH: OHLC[i].high,
-                                                 shadowL: OHLC[i].low,
-                                                    open: OHLC[i].open,
-                                                   close: OHLC[i].close)
+                                                 shadowH: data[i].high,
+                                                 shadowL: data[i].low,
+                                                    open: data[i].open,
+                                                   close: data[i].close)
                 entries.append(entry)
             }
-            
         }
         
         //Set the entries

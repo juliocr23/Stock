@@ -13,31 +13,38 @@ import SVProgressHUD
 import Firebase
 import FirebaseFirestore
 import ChameleonFramework
+import SwiftSoup
+
+
+/* KEYS
+ {"3R4VKUEH0HOY3W4Y",
+ "2Y3EEPZRVD37CT31",
+ "Z8V5MX3CKIN23SDJ",
+ "FUFRBDOZCXJLG5Z1",
+ "K7GDFKDRDGZ5K3RS",
+ "EAOHWAS10TRK3G59"};
+ */
 
 class ViewController: UIViewController, SearchDelegate {
     
-    var crypto = Cryptocurrency(name: "Bitcoin Cash")
+   // var crypto = CryptocurrencyDetailed(name: "Bitcoin", symbol: "BTC" )
     
-    //CoinMarket model
-    var coinMarket = CoinMarketCap()
+    //Alphavantage
+    var alphavantage: Alphavantage!
     
     //Graph model
     var chart = Graph()
     
-    //Reference to firestore database
-    var firebaseDB: Firestore!
-    var docRef: DocumentReference {
-        get {
-            return firebaseDB.collection("cryptocurrencies").document(crypto.name)
-        }
-    }
+    var db:FirestoreCrypto!
     
-    //data from firebase
-    var data : [String: [String: Double]]?
+    var data: [String: FirestoreData]!
+    var sortedKeys:  [String]!
     
     var graphIndex = 0
+    var days = 7
     
-    var period = 7
+    let rateApiKey       = "2Y3EEPZRVD37CT31"
+    let historicalApiKey = "Z8V5MX3CKIN23SDJ"
     
     @IBOutlet weak var rank: UILabel!
     @IBOutlet weak var marketCap: UILabel!
@@ -47,6 +54,7 @@ class ViewController: UIViewController, SearchDelegate {
     @IBOutlet weak var price: UILabel!
     @IBOutlet weak var candleStickGraph: CandleStickChartView!
     @IBOutlet var      timeGraphButtons: [UIButton]!
+    
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var percentChange: UILabel!
     @IBOutlet weak var rankConstraint: NSLayoutConstraint!
@@ -57,154 +65,137 @@ class ViewController: UIViewController, SearchDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        abjustConstraints()
+        db = FirestoreCrypto(name:"Bitcoin", symbol: "BTC")
         
+        alphavantage = Alphavantage(function: .daily,
+                                    apikey: historicalApiKey,
+                                    market: "USD",
+                                    symbol: db.crypto.name)
+        
+        abjustConstraints()
         SVProgressHUD.show()
         
-        configureDB()
+        getExchangeRate()
         
-        getActiveCurrencies(url: "https://api.coinmarketcap.com/v2/listings/", setData: getCryptoID)
-        
-        readDataFromDB(getData: fillGraph)
+        db.read(function: checkUpdate)
     }
     
-
-    func test(data: [String: [String: Double]]){
-        print(sort(data: data))
-    }
-    
-    
-    //MARK: - Parse JSON
-    /**************************************************************************/
-    
-    func getCurrentPrice(url: String, parameters: [String: String], updateData: @escaping (JSON) -> Void) {
+    func getExchangeRate() {
         
-        Alamofire.request(url, method: .get, parameters: parameters).responseJSON {
-            response in
-          
-            if response.result.isSuccess {
-                let json = JSON(response.result.value!)
+        DispatchQueue.global(qos: .userInteractive).async {
+            
+            if let url = URL(string: "https://coinmarketcap.com/currencies/bitcoin/") {
+                do {
+                    let html = try String(contentsOf: url)
                 
-                updateData(json)
+                    //Get marketCap, volume, max supply, Circulating supply and rank
+                    let info2 = Utilities.getSubString(str: html, start: 55400, end: 396200)
+                    let info1 = Utilities.getSubString(str: html, start: 50000, end: 402300)
+                    
+                    let expression = "[-+]?[0-9]*\\.?[0-9]+"
+                    
+                    //Get an array of String of numbers from a regular expression
+                    // and extract the crypto info
+                    var result = Utilities.matches(for: expression , in: info1)
+                    self.db.crypto.price  = Double(result[1])!
+                    
+                    let negative = Double(result[4])!
+                    let positive =  Double(result[8])!
+                    
+                    //Check whether is a positive or negative change
+                    //in the last 24hr
+                    if negative < 0 {
+                        self.db.crypto.change = negative
+                    } else{
+                        self.db.crypto.change = positive
+                    }
+                    
+                    result = Utilities.matches(for: expression , in: info2)
+                    self.db.crypto.marketCap          = Double(result[0])!
+                    self.db.crypto.volume             = Int((Double(result[7])?.rounded())!)
+                    self.db.crypto.circulatingSupply  = Int((Double(result[17])?.rounded())!)
+                    self.db.crypto.maxSupply          = Int((Double(result[23])?.rounded())!)
+                    self.db.crypto.rank               = Int(result[result.count-1])!
+                    
+                    DispatchQueue.main.async {
+                         self.updateUI()
+                    }
+                }
+                catch {
+                  print("Couldn't load url")
+                }
             }
             else {
-                 print("Error \(String(describing: response.result.error))")
+              print("The url was bad")
             }
         }
-    }
-    
-    func getActiveCurrencies(url: String, setData:  @escaping (JSON) -> Void ) {
-       
-        Alamofire.request(url, method: .get).responseJSON {
-            response in
-            
-            if response.result.isSuccess {
-                let json = JSON(response.result.value!)
-                
-                setData(json)
-            }
-            else {
-                print("Error \(String(describing: response.result.error))")
-            }
-        }
-    }
-    
-    func getCryptoID(json: JSON) {
-        
-        let dict = Dictionary(keyValuePairs:json["data"].arrayValue.map{($0["name"].stringValue, $0["id"].stringValue)})
-        let key  = crypto.name
-        
-        if let id =  dict[key] {
-            
-            getCurrentPrice(url: coinMarket.priceUrl+id + "/",
-                            parameters: coinMarket.priceParamerer,
-                            updateData: updateCurrencyData)
-        } else{
-            print("Key: " + key + " was not found")
-        }
-    
-    }
-    
-    //Mark: - Update labels
-    /**************************************************************************/
-   func updateCurrencyData(json: JSON){
-    
-        crypto.name               = json["data"]["name"].stringValue
-        crypto.symbol             = json["data"]["symbol"].stringValue
-        crypto.price              = json["data"]["quotes"]["USD"]["price"].doubleValue.rounded(places: 2)
-        crypto.volume             = json["data"]["quotes"]["USD"]["volume_24h"].intValue
-        crypto.marketCap          = json["data"]["quotes"]["USD"]["market_cap"].doubleValue
-        crypto.change             = json["data"]["quotes"]["USD"]["percent_change_1h"].doubleValue
-        crypto.circulatingSupply  = json["data"]["circulating_supply"].intValue
-        crypto.maxSupply          = json["data"]["max_supply"].intValue
-        crypto.rank               = json["data"]["rank"].intValue
-    
-        
-        updateUI()
     }
     
     func updateUI(){
         
-        var display = getDisplayFormat(number: Double(crypto.volume))
+        var display = Utilities.getDisplayFormat(number: Double(db.crypto.volume))
         volume.text = display
         
-        display =  getDisplayFormat(number: Double(crypto.marketCap))
+        display =  Utilities.getDisplayFormat(number: Double(db.crypto.marketCap))
         marketCap.text = display
         
-        if crypto.maxSupply == 0 {
+        if db.crypto.maxSupply == 0 {
             maxSupply.text = "N/A"
         }else {
-            display = getDisplayFormat(number: Double(crypto.maxSupply))
+            display = Utilities.getDisplayFormat(number: Double(db.crypto.maxSupply))
             maxSupply.text = display
         }
         
-        display =  getDisplayFormat(number: Double(crypto.circulatingSupply))
+        display =  Utilities.getDisplayFormat(number: Double(db.crypto.circulatingSupply))
         circulatingSupply.text = display
         
-        percentChange.text = "(\(crypto.change)%) this hour"
+        if db.crypto.change >= 0 {
+            percentChange.textColor = UIColor.green
+        } else{
+            percentChange.textColor = UIColor.red
+        }
         
-        rank.text = "Rank " + String(crypto.rank)
-        price.text = "$" + String(crypto.price) + " USD"
+        percentChange.text = "(\(db.crypto.change)%) this hour"
         
-        icon.image = UIImage(named: crypto.name)
+        rank.text = "Rank " + String(db.crypto.rank)
+        price.text = "$" + String(db.crypto.price) + " USD"
+        
+        icon.image = UIImage(named: db.crypto.name)
         icon.backgroundColor = UIColor.flatBlue()
     }
     
-    //MARK: - Update Graph
+    //MARK: - Graphs Updates
     /****************************************************************************************/
-    func fillGraph(data: [String: [String: Double]]){
+    func fillGraph(){
         
-        let sortedKeys = sort(data: data)
-        chart.data = [HistoricalData]()
+        chart.data.removeAll()
+        var temp = days
         
         //Read all Data from sorted keys
-        if period == -1{
-           period = sortedKeys.count
+        if temp == -1 || days > sortedKeys.count-1 {
+           temp = sortedKeys.count-1
         }
         
-        for i in 0...period-1 where sortedKeys.count >= period {
+        //Fill data for chart
+        for i in 0...temp {
             
             let key = sortedKeys[i]
-            let temp = data[key]
-            
-            let historicalData = HistoricalData(date: key,
-                                                open: temp!["open"]!,
-                                                high: temp!["high"]!,
-                                                low:  temp!["low"]!,
-                                                close: temp!["close"]!)
-           chart.data?.append(historicalData)
+            let value = data[key]!
+            chart.data.append(value)
         }
-        
         updateGraph()
     }
     
     func updateGraph(){
         
-        candleStickGraph.setNeedsDisplay()
         candleStickGraph.data = chart.getData()
         candleStickGraph.leftAxis.enabled = false
         candleStickGraph.rightAxis.enabled = false
         candleStickGraph.xAxis.enabled = false
+        candleStickGraph.setScaleEnabled(false)
+        candleStickGraph.setNeedsDisplay()
+        candleStickGraph.dragEnabled = false
+        candleStickGraph.legend.drawInside = false
         
         setTitle()
         SVProgressHUD.dismiss()
@@ -217,23 +208,16 @@ class ViewController: UIViewController, SearchDelegate {
         
         if timeGraphButtons[graphIndex] != sender {
             
-            print("one week")
-            
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatBlue()
             graphIndex = 0
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatPowderBlueColorDark()
 
-            
-            candleStickGraph.clear()
+           candleStickGraph.clear()
             SVProgressHUD.show()
-            
-             period = 7
-            
-            if  data == nil {
-               readDataFromDB(getData: fillGraph)
-            }else{
-                fillGraph(data: data!)
-            }
+          
+            print("one week")
+            days = 7
+            fillGraph()
         }
     }
     
@@ -245,17 +229,12 @@ class ViewController: UIViewController, SearchDelegate {
             graphIndex = 1
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatPowderBlueColorDark()
             
-            
-            candleStickGraph.clear()
+           candleStickGraph.clear()
             SVProgressHUD.show()
             
-            period = 90
-            
-            if  data == nil {
-                readDataFromDB(getData: fillGraph)
-            }else{
-                fillGraph(data: data!)
-            }
+            print("Three months")
+            days = 90
+            fillGraph()
         }
     }
     
@@ -263,45 +242,33 @@ class ViewController: UIViewController, SearchDelegate {
         
         if timeGraphButtons[graphIndex] != sender {
             
-              print("six months")
-            
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatBlue()
             graphIndex = 2
-            
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatPowderBlueColorDark()
-            candleStickGraph.clear()
+            
+             candleStickGraph.clear()
             SVProgressHUD.show()
             
-            period = 182
-            
-            if   data == nil {
-               readDataFromDB(getData: fillGraph)
-            }else{
-                fillGraph(data: data!)
-            }
+            print("six months")
+            days = 182
+            fillGraph()
         }
     }
     
     @IBAction func nineMonth(_ sender: UIButton) {
         
         if timeGraphButtons[graphIndex] != sender {
-             print("9 months")
             
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatBlue()
             graphIndex = 3
-            
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatPowderBlueColorDark()
-            candleStickGraph.clear()
+            
+             candleStickGraph.clear()
             SVProgressHUD.show()
             
-            period = 273
-           
-            
-            if  data == nil {
-               readDataFromDB(getData: fillGraph)
-            }else{
-                fillGraph(data: data!)
-            }
+            print("9 months")
+            days = 273
+            fillGraph()
         }
     }
     
@@ -309,23 +276,16 @@ class ViewController: UIViewController, SearchDelegate {
         
         if timeGraphButtons[graphIndex] != sender {
             
-             print("one year")
-            
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatBlue()
             graphIndex = 4
-            
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatPowderBlueColorDark()
-            candleStickGraph.clear()
+            
+           candleStickGraph.clear()
             SVProgressHUD.show()
-            
-             period = 365
            
-            
-            if data == nil {
-                readDataFromDB(getData: fillGraph)
-            }else{
-                fillGraph(data: data!)
-            }
+            print("one year")
+            days = 365
+            fillGraph()
         }
     }
     
@@ -333,135 +293,107 @@ class ViewController: UIViewController, SearchDelegate {
         
         if timeGraphButtons[graphIndex] != sender {
             
-             print("all time")
-            
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatBlue()
             graphIndex = 5
-            
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatPowderBlueColorDark()
+            
             candleStickGraph.clear()
             SVProgressHUD.show()
-            
-            period = -1
            
-            if data == nil {
-                readDataFromDB(getData: fillGraph)
-            }else{
-                fillGraph(data: data!)
-            }
+            print("all time")
+            days = -1
+            fillGraph()
+        }
+    }
+    
+    //MARK: Check update
+    func checkUpdate(keys: [String], data: [String: FirestoreData]) {
+        
+        self.sortedKeys = keys
+        self.data = data
+        
+        var yesterday   = Utilities.getYesterday()
+        var lastEntry   = keys[keys.count-1]
+        
+        //Format yesterday and last entry into yyyyMMdd
+        yesterday = Utilities.yyyyMMdd(str: yesterday)
+        lastEntry = Utilities.yyyyMMdd(str: lastEntry)
+        
+        //Get year,month and day from yesterday
+        let (yearFromYesterday,
+             monthFromYesterday,
+             dayFromYesterday)  = Utilities.getYearMonthDayInt(text: yesterday)
+        
+        //Get year, month and day from last entry
+        let (yearFromLastEntry,
+             monthFromLastEntry,
+             dayFromLastEntry)  = Utilities.getYearMonthDayInt(text: lastEntry)
+        
+        
+        //Check if there is an update
+        let needAnUpdate =  yearFromYesterday  > yearFromLastEntry  ||
+            monthFromYesterday > monthFromLastEntry ||
+            dayFromYesterday   > dayFromLastEntry
+        
+        if needAnUpdate {
+           print("There is an update")
+           Utilities.getJsonRequest(url: alphavantage.url,
+                                     parameters: alphavantage.historicalData,
+                                     function: updateData)
+        } else {
+            print("There is  no update filling graph")
+            fillGraph()
         }
     }
     
     
-    //MARK: - Firebase/Firestore
-    /******************************************************************************************/
-    func configureDB(){
+    func updateData(json: JSON){
         
-        FirebaseApp.configure()
+        //Get parserJson as a Dictionary and sort keys
+        let values = parseJsonAlphavantage(json: json)
+        let keys = values.keys.sorted()
         
-        firebaseDB = Firestore.firestore()
-        let settings = firebaseDB.settings
-        settings.areTimestampsInSnapshotsEnabled = true
-        firebaseDB.settings = settings
-        
-        docRef.addSnapshotListener(includeMetadataChanges: true) { (document, err) in
-            
-            guard let doc = document else {
-                print("Error fetching document: \(err!)")
-                return
-            }
-            
-            if !doc.metadata.hasPendingWrites {
-                print("Hurra")
-            }
+        //Fill array with new values
+        var newData = [String:FirestoreData]()
+        for i in sortedKeys.count...keys.count-1 {
+          let key = keys[i]
+          newData[key] = values[key]
         }
+        
+        //Write new values to database
+        db.write(data: newData)
+        
+        //Fill graph
+        data = values
+        sortedKeys = keys
+        fillGraph()
     }
     
-    /*func writeDataToFirebase(path: String) {
-       
-        DispatchQueue.global(qos: .userInteractive).async {
+    //MARK: parseAlphavantageJSON
+    func parseJsonAlphavantage(json: JSON)->[String: FirestoreData]{
+        
+        //Read Historical data from JSON
+        var values  = [String: FirestoreData]()
+        for (key,subJson) : (String, JSON) in json[json.startIndex].1 {
             
-            //Get html document
-            let page =  self.coinMarket.getHTML(url: path)
+            var temp = FirestoreData()
+            temp.open  =  subJson["1b. open (USD)"].doubleValue
+            temp.high  =  subJson["2b. high (USD)"].doubleValue
+            temp.low   =  subJson["3b. low (USD)"].doubleValue
+            temp.close =  subJson["4b. close (USD)"].doubleValue
             
-            if page != nil {
-                
-                //Parse data from html
-                let data = self.coinMarket.getHistory(html: page!)
-                
-                //Put data in DB
-                for value in data {
-                    self.docRef.setData(value.dictionary , merge: true)
-                }
-                self.docRef.addSnapshotListener(includeMetadataChanges: true, listener: { (document, error) in
-                    
-                    if let doc = document {
-                        if !doc.metadata.hasPendingWrites {
-                            print("Data has been written to Server")
-                            self.readDataFromDB(getData: self.fillGraph)
-                        }
-                    }
-                })
-            }
+            values[key] = temp
         }
-    }*/
-    
-    func readDataFromDB(getData: @escaping ([String: [String: Double]]) -> Void) {
-        
-        //Get Data from document
-        docRef.getDocument { (document, err) in
-            
-            //Get document if not nil
-            if let doc = document, doc.exists {
-                
-                self.data = doc.data() as? [String: [String: Double]]
-                
-                getData(self.data!)
-            }
-            else {
-                print("There was an error Getting document")
-                print(err.debugDescription)
-            }
-        }
-    }
-    
-    func sort(data : [String:[String: Double]]) ->[String]{
-        
-        let keys = Array(data.keys)
-        var convertedArray: [Date] = []
-        
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "MMM dd, yyyy"
-        
-        //Convert String dates to Dates objects
-        for key in keys {
-            let date = dateFormatter.date(from: key)
-            if let date = date {
-                convertedArray.append(date)
-            }
-        }
-        
-        //Sorted the dates in descending order
-        let sorted = convertedArray.sorted(by:
-        {$0.compare($1) == .orderedAscending })
-        
-        var ready = [String]()
-        
-        //Convert date to String
-        for value in sorted {
-            ready.append(dateFormatter.string(from:value))
-        }
-        
-        return ready
+        return values
     }
     
     func setTitle(){
-           self.title =  crypto.name + " (" + crypto.symbol +  ")"
+           self.title =  db.crypto.name + " (" + db.crypto.symbol +  ")"
     }
     
     //MARK: - SearchDelegate
     //******************************************************************************************\\
-    func selectedCryptocurrency(name:  String) {
+    func selectedCryptocurrency(name:  String, symbol: String) {
         
         //Show progress
         SVProgressHUD.show()
@@ -470,76 +402,15 @@ class ViewController: UIViewController, SearchDelegate {
         
         //Clear graph
         candleStickGraph.clear()
-      
-        //Set cryptocurrency name
-        crypto.name = name
         
-        let crypName = name.lowercased()
-        coinMarket.crypto = crypName
+        //Update alphavantage
+        alphavantage.symbol = symbol
         
-        //Read data, check for updates and fill graph.
-        readDataFromDB(getData: fillGraph)
-        
-        //get current price
-         getActiveCurrencies(url: "https://api.coinmarketcap.com/v2/listings/", setData: getCryptoID)
+        //Update Firebase info
+        db.crypto.name   = name
+        db.crypto.symbol = symbol
+        db.read(function: checkUpdate)
     }
-    
-    
-    //MARK: - UpdateData
-    /**************************************************************************************/
-   /* func updateData(data: [String: [String: Double]]){
-      
-        //Sort Data from DB
-       let sortedKeys = sort(data: data)
-    
-      //Get yesterday and last entry from DB
-       var yesterday  = coinMarket.getYesterday()
-       var lastEntry  = sortedKeys[sortedKeys.count-1]
-        
-        //Format yesterday and last entry int yyyyMMdd
-       yesterday = coinMarket.yyyyMMdd(str: yesterday)
-       lastEntry = coinMarket.yyyyMMdd(str: lastEntry)
-        
-        
-         //Get year,month and day from yesterday
-        let (yearFromYesterday,
-             monthFromYesterday,
-             dayFromYesterday) = getYearMonthDayInt(text: yesterday)
-        
-         //Get year, month and day from last entry
-        let (yearFromLastEntry,
-             monthFromLastEntry,
-             dayFromLastEntry) = getYearMonthDayInt(text: lastEntry)
-        
-      
-        //Check if there is an update
-        let needAnUpdate = yearFromYesterday  > yearFromLastEntry  ||
-                           monthFromYesterday > monthFromLastEntry ||
-                           dayFromYesterday   > dayFromLastEntry
-        
-        if needAnUpdate {
-            print("There is an update")
-            
-            coinMarket.startDate = lastEntry
-            coinMarket.endDate   = yesterday
-            
-            print("Url: " + coinMarket.historicalUrl)
-            writeDataToFirebase(path: coinMarket.historicalUrl)
-            
-        }else{
-            print("There is no update")
-            fillGraph(data: data)
-        }
-    }*/
-    
-    /*func getYearMonthDayInt(text: String)->(Int,Int,Int) {
-        let year     = Int(coinMarket.getSubString(str: text, start: 0, end: 4))!
-        let month    = Int(coinMarket.getSubString(str: text, start: 4, end: 2))!
-        let day      = Int(coinMarket.getSubString(str: text, start: 6, end: 0))!
-        
-        return (year,month,day)
-    }*/
-    
     
     
     //MARK - Segues
@@ -553,25 +424,10 @@ class ViewController: UIViewController, SearchDelegate {
         }
     }
     
-    //MARK - Request html
-     /****************************************************************************************/
-   /* func requestHTML(url: String, getHTML: @escaping (String) -> Void){
-        
-        DispatchQueue.global(qos: .userInteractive).async {
-            
-            let html =  self.coinMarket.getHTML(url: url)
-            
-            if html != nil {
-                getHTML(html!)
-            }else{
-                print("HTML is nil")
-            }
-        }
-    }*/
-    
+  
     func abjustConstraints(){
         
-        if   UIDevice.current.screenType == .iPhones_6Plus_6sPlus_7Plus_8Plus {
+        if  UIDevice.current.screenType == .iPhones_6Plus_6sPlus_7Plus_8Plus {
             
             rankConstraint.constant = CGFloat(90)
             view.layoutIfNeeded()
@@ -586,96 +442,6 @@ class ViewController: UIViewController, SearchDelegate {
             view.layoutIfNeeded()
         }
     }
-    
-    func getDisplayFormat(number: Double) -> String {
-        
-        let num = abs(Double(number))
-        let sign = (number < 0) ? "-" : ""
-        
-        switch number {
-            
-        case 1_000_000_000...:
-            var formatted = num / 1_000_000_000
-            formatted = formatted.truncate(places: 2)
-            return "$\(sign)\(formatted) B"
-            
-        case 1_000_000...:
-            var formatted = num / 1_000_000
-            formatted = formatted.truncate(places: 2)
-            return "$\(sign)\(formatted) M"
-            
-        case 1_000...:
-            var formatted = num / 1_000
-            formatted = formatted.truncate(places: 2)
-            return "$\(sign)\(formatted) K"
-            
-        case 0...:
-            return "$\(number)"
-            
-        default:
-            return "$\(sign)\(number)"
-            
-        }
-    }
-}
-
-//MARK: double methods
-extension Double {
-    
-    /// Rounds the double to decimal places value
-    func rounded(places:Int) -> Double {
-        let divisor = pow(10.0, Double(places))
-        return (self * divisor).rounded() / divisor
-    }
-}
-
-extension Double {
-    func truncate(places: Int) -> Double {
-        return Double(floor(pow(10.0, Double(places)) * self)/pow(10.0, Double(places)))
-    }
-}
-
-
-extension Dictionary {
-    public init(keyValuePairs: [(Key, Value)]) {
-        self.init()
-        for pair in keyValuePairs {
-            self[pair.0] = pair.1
-        }
-    }
-}
-
-//Mark: Device version
-extension UIDevice {
-    var iPhoneX: Bool {
-        return UIScreen.main.nativeBounds.height == 2436
-    }
-    var iPhone: Bool {
-        return UIDevice.current.userInterfaceIdiom == .phone
-    }
-    enum ScreenType: String {
-        case iPhone4_4S = "iPhone 4 or iPhone 4S"
-        case iPhones_5_5s_5c_SE = "iPhone 5, iPhone 5s, iPhone 5c or iPhone SE"
-        case iPhones_6_6s_7_8 = "iPhone 6, iPhone 6S, iPhone 7 or iPhone 8"
-        case iPhones_6Plus_6sPlus_7Plus_8Plus = "iPhone 6 Plus, iPhone 6S Plus, iPhone 7 Plus or iPhone 8 Plus"
-        case iPhoneX = "iPhone X"
-        case unknown
-    }
-    var screenType: ScreenType {
-        switch UIScreen.main.nativeBounds.height {
-        case 960:
-            return .iPhone4_4S
-        case 1136:
-            return .iPhones_5_5s_5c_SE
-        case 1334:
-            return .iPhones_6_6s_7_8
-        case 1920, 2208:
-            return .iPhones_6Plus_6sPlus_7Plus_8Plus
-        case 2436:
-            return .iPhoneX
-        default:
-            return .unknown
-        }
-    }
+  
 }
 
