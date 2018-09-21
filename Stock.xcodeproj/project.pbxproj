@@ -14,6 +14,8 @@
 		7744A5F5213090380064ECA2 /* Alphavantage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7744A5F4213090380064ECA2 /* Alphavantage.swift */; };
 		7744A5F7213093100064ECA2 /* market.csv in Resources */ = {isa = PBXBuildFile; fileRef = 7744A5F6213093100064ECA2 /* market.csv */; };
 		7744A5F9213093430064ECA2 /* currencies.csv in Resources */ = {isa = PBXBuildFile; fileRef = 7744A5F8213093430064ECA2 /* currencies.csv */; };
+		774D594921551EDC0058EAB9 /* CryptoCompare.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774D594821551EDC0058EAB9 /* CryptoCompare.swift */; };
+		774D594B2155230A0058EAB9 /* PriceData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774D594A2155230A0058EAB9 /* PriceData.swift */; };
 		774F14B7211A0F900057EA6F /* SearchViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774F14B6211A0F900057EA6F /* SearchViewController.swift */; };
 		77A4B5162131C568005BC299 /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77A4B5152131C568005BC299 /* Utilities.swift */; };
 		77B4503E21447CED00F4CF99 /* FirestoreCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77B4503D21447CED00F4CF99 /* FirestoreCrypto.swift */; };
@@ -38,6 +40,8 @@
 		7744A5F4213090380064ECA2 /* Alphavantage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Alphavantage.swift; sourceTree = "<group>"; };
 		7744A5F6213093100064ECA2 /* market.csv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = market.csv; sourceTree = "<group>"; };
 		7744A5F8213093430064ECA2 /* currencies.csv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = currencies.csv; sourceTree = "<group>"; };
+		774D594821551EDC0058EAB9 /* CryptoCompare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoCompare.swift; sourceTree = "<group>"; };
+		774D594A2155230A0058EAB9 /* PriceData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceData.swift; sourceTree = "<group>"; };
 		774F14B6211A0F900057EA6F /* SearchViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchViewController.swift; sourceTree = "<group>"; };
 		77A4B5152131C568005BC299 /* Utilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
 		77B4503D21447CED00F4CF99 /* FirestoreCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirestoreCrypto.swift; sourceTree = "<group>"; };
@@ -80,6 +84,7 @@
 				77335B1221335C86007C4976 /* CryptocurrencyDetailed.swift */,
 				77B4503F214482E700F4CF99 /* FirestoreData.swift */,
 				77D03B472104E5100081F591 /* Graph.swift */,
+				774D594A2155230A0058EAB9 /* PriceData.swift */,
 			);
 			path = "Data Model";
 			sourceTree = "<group>";
@@ -89,6 +94,7 @@
 			children = (
 				7744A5F4213090380064ECA2 /* Alphavantage.swift */,
 				77B4503D21447CED00F4CF99 /* FirestoreCrypto.swift */,
+				774D594821551EDC0058EAB9 /* CryptoCompare.swift */,
 			);
 			path = "Relies on Rest";
 			sourceTree = "<group>";
@@ -118,8 +124,8 @@
 				77DFFC5320F95B1C004D591F /* Controller */,
 				77DFFC5220F95B13004D591F /* View */,
 				77DFFC5120F95B08004D591F /* Model */,
-				77DFFC4B20F95AF7004D591F /* Info.plist */,
 				77D49E1E2111F0FE00D9B754 /* GoogleService-Info.plist */,
+				77DFFC4B20F95AF7004D591F /* Info.plist */,
 				770BC7F62116131200BA9DEF /* Assets.xcassets */,
 			);
 			path = Stock;
@@ -322,11 +328,13 @@
 				77A4B5162131C568005BC299 /* Utilities.swift in Sources */,
 				77B45040214482E700F4CF99 /* FirestoreData.swift in Sources */,
 				77DFFC4220F95AF4004D591F /* ViewController.swift in Sources */,
+				774D594B2155230A0058EAB9 /* PriceData.swift in Sources */,
 				7744A5F5213090380064ECA2 /* Alphavantage.swift in Sources */,
 				77B4503E21447CED00F4CF99 /* FirestoreCrypto.swift in Sources */,
 				770FA64E21226818004B5EC3 /* FavoriteViewController.swift in Sources */,
 				77335B1321335C86007C4976 /* CryptocurrencyDetailed.swift in Sources */,
 				77DFFC4020F95AF4004D591F /* AppDelegate.swift in Sources */,
+				774D594921551EDC0058EAB9 /* CryptoCompare.swift in Sources */,
 				770FA64A2122595C004B5EC3 /* Cryptocurrency.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

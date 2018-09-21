@@ -10,7 +10,6 @@ import Alamofire
 import SwiftyJSON
 import Charts
 import SVProgressHUD
-import Firebase
 import FirebaseFirestore
 import ChameleonFramework
 import SwiftSoup
@@ -30,10 +29,14 @@ class ViewController: UIViewController, SearchDelegate {
    // var crypto = CryptocurrencyDetailed(name: "Bitcoin", symbol: "BTC" )
     
     //Alphavantage
-    var alphavantage: Alphavantage!
+   // var alphavantage: Alphavantage!
     
-    //Graph model
-    var chart = Graph()
+    
+    var crypto = Cryptocurrency(name: "Bitcoin", symbol: "BTC")
+    var graphModel = Graph()
+    
+    var crypComp: CryptoCompare!
+    var priceData  = PriceData()
     
     var db:FirestoreCrypto!
     
@@ -46,129 +49,74 @@ class ViewController: UIViewController, SearchDelegate {
     let rateApiKey       = "2Y3EEPZRVD37CT31"
     let historicalApiKey = "Z8V5MX3CKIN23SDJ"
     
-    @IBOutlet weak var rank: UILabel!
     @IBOutlet weak var marketCap: UILabel!
     @IBOutlet weak var volume: UILabel!
-    @IBOutlet weak var circulatingSupply: UILabel!
-    @IBOutlet weak var maxSupply: UILabel!
     @IBOutlet weak var price: UILabel!
     @IBOutlet weak var candleStickGraph: CandleStickChartView!
     @IBOutlet var      timeGraphButtons: [UIButton]!
-    
+    @IBOutlet weak var circulatingSupply: UILabel!
+    @IBOutlet weak var highDay: UILabel!
+    @IBOutlet weak var lowDay: UILabel!
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var percentChange: UILabel!
-    @IBOutlet weak var rankConstraint: NSLayoutConstraint!
-    @IBOutlet weak var constraint: NSLayoutConstraint!
-    @IBOutlet weak var priceConstraint: NSLayoutConstraint!
-    @IBOutlet weak var timeConstraint: NSLayoutConstraint!
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        db = FirestoreCrypto(name:"Bitcoin", symbol: "BTC")
+          //   db = FirestoreCrypto(name:"Bitcoin", symbol: "BTC")
+         //    abjustConstraints()
+        //SVProgressHUD.show()
         
-        alphavantage = Alphavantage(function: .daily,
-                                    apikey: historicalApiKey,
-                                    market: "USD",
-                                    symbol: db.crypto.name)
-        
-        abjustConstraints()
-        SVProgressHUD.show()
-        
-        getExchangeRate()
-        
-        db.read(function: checkUpdate)
+        crypComp = CryptoCompare(market: "USD", crypSymbol: "BTC")
+        Utilities.getJsonRequest(url: crypComp.priceUrl,
+                                 parameters: crypComp.priceRequest,
+                                 function: getExchangeRate)
     }
     
-    func getExchangeRate() {
+    func getExchangeRate(json: JSON) {
         
-        DispatchQueue.global(qos: .userInteractive).async {
-            
-            if let url = URL(string: "https://coinmarketcap.com/currencies/bitcoin/") {
-                do {
-                    let html = try String(contentsOf: url)
-                
-                    //Get marketCap, volume, max supply, Circulating supply and rank
-                    let info2 = Utilities.getSubString(str: html, start: 55400, end: 396200)
-                    let info1 = Utilities.getSubString(str: html, start: 50000, end: 402300)
-                    
-                    let expression = "[-+]?[0-9]*\\.?[0-9]+"
-                    
-                    //Get an array of String of numbers from a regular expression
-                    // and extract the crypto info
-                    var result = Utilities.matches(for: expression , in: info1)
-                    self.db.crypto.price  = Double(result[1])!
-                    
-                    let negative = Double(result[4])!
-                    let positive =  Double(result[8])!
-                    
-                    //Check whether is a positive or negative change
-                    //in the last 24hr
-                    if negative < 0 {
-                        self.db.crypto.change = negative
-                    } else{
-                        self.db.crypto.change = positive
-                    }
-                    
-                    result = Utilities.matches(for: expression , in: info2)
-                    self.db.crypto.marketCap          = Double(result[0])!
-                    self.db.crypto.volume             = Int((Double(result[7])?.rounded())!)
-                    self.db.crypto.circulatingSupply  = Int((Double(result[17])?.rounded())!)
-                    self.db.crypto.maxSupply          = Int((Double(result[23])?.rounded())!)
-                    self.db.crypto.rank               = Int(result[result.count-1])!
-                    
-                    DispatchQueue.main.async {
-                         self.updateUI()
-                    }
-                }
-                catch {
-                  print("Couldn't load url")
-                }
-            }
-            else {
-              print("The url was bad")
-            }
-        }
+        print(json)
+        let data =  json["RAW"][crypComp.crypSymbol][crypComp.market]
+        
+        priceData.price       = data["PRICE"].doubleValue
+        priceData.supply      = data["SUPPLY"].doubleValue
+        priceData.highDay     = data["HIGHDAY"].doubleValue
+        priceData.lowDay      = data["LOWDAY"].doubleValue
+        priceData.volume24hr  = data["TOTALVOLUME24HTO"].doubleValue
+        priceData.marketCap   = data["MKTCAP"].doubleValue
+        priceData.change24Hr  = data["CHANGEPCT24HOUR"].doubleValue
+        priceData.crypSymbol  = json["DISPLAY"][crypComp.crypSymbol][crypComp.market]["FROMSYMBOL"].stringValue
+        
+        updateUI()
     }
     
     func updateUI(){
         
-        var display = Utilities.getDisplayFormat(number: Double(db.crypto.volume))
-        volume.text = display
+      /*
+        icon.image = UIImage(named: db.crypto.name)
+        icon.backgroundColor = UIColor.flatBlue()*/
         
-        display =  Utilities.getDisplayFormat(number: Double(db.crypto.marketCap))
-        marketCap.text = display
-        
-        if db.crypto.maxSupply == 0 {
-            maxSupply.text = "N/A"
-        }else {
-            display = Utilities.getDisplayFormat(number: Double(db.crypto.maxSupply))
-            maxSupply.text = display
-        }
-        
-        display =  Utilities.getDisplayFormat(number: Double(db.crypto.circulatingSupply))
-        circulatingSupply.text = display
-        
-        if db.crypto.change >= 0 {
+        if priceData.change24Hr >= 0 {
             percentChange.textColor = UIColor.green
-        } else{
+        } else {
             percentChange.textColor = UIColor.red
         }
         
-        percentChange.text = "(\(db.crypto.change)%) this hour"
+        percentChange.text     = "(\(priceData.change24Hr.rounded(places: 2))%) 24H"
+        price.text             = "$" + String(priceData.price)
+        lowDay.text            = "$" + String(priceData.lowDay)
+        highDay.text           = "$" + String(priceData.highDay)
+        volume.text            = "$" + Utilities.getDisplayFormat(number: priceData.volume24hr)
+        circulatingSupply.text =  priceData.crypSymbol + Utilities.getDisplayFormat(number: priceData.supply)
+        marketCap.text         = "$" + Utilities.getDisplayFormat(number: priceData.marketCap)
         
-        rank.text = "Rank " + String(db.crypto.rank)
-        price.text = "$" + String(db.crypto.price) + " USD"
-        
-        icon.image = UIImage(named: db.crypto.name)
-        icon.backgroundColor = UIColor.flatBlue()
     }
     
     //MARK: - Graphs Updates
     /****************************************************************************************/
     func fillGraph(){
         
-        chart.data.removeAll()
+        graphModel.data.removeAll()
         var temp = days
         
         //Read all Data from sorted keys
@@ -181,14 +129,14 @@ class ViewController: UIViewController, SearchDelegate {
             
             let key = sortedKeys[i]
             let value = data[key]!
-            chart.data.append(value)
+            graphModel.data.append(value)
         }
         updateGraph()
     }
     
     func updateGraph(){
         
-        candleStickGraph.data = chart.getData()
+        candleStickGraph.data = graphModel.getData()
         candleStickGraph.leftAxis.enabled = false
         candleStickGraph.rightAxis.enabled = false
         candleStickGraph.xAxis.enabled = false
@@ -337,9 +285,9 @@ class ViewController: UIViewController, SearchDelegate {
         
         if needAnUpdate {
            print("There is an update")
-           Utilities.getJsonRequest(url: alphavantage.url,
-                                     parameters: alphavantage.historicalData,
-                                     function: updateData)
+           //Utilities.getJsonRequest(url: alphavantage.url,
+                                    // parameters: alphavantage.historicalData,
+                                   //  function: updateData)
         } else {
             print("There is  no update filling graph")
             fillGraph()
@@ -404,7 +352,7 @@ class ViewController: UIViewController, SearchDelegate {
         candleStickGraph.clear()
         
         //Update alphavantage
-        alphavantage.symbol = symbol
+      //  alphavantage.symbol = symbol
         
         //Update Firebase info
         db.crypto.name   = name
@@ -429,16 +377,16 @@ class ViewController: UIViewController, SearchDelegate {
         
         if  UIDevice.current.screenType == .iPhones_6Plus_6sPlus_7Plus_8Plus {
             
-            rankConstraint.constant = CGFloat(90)
+         //   rankConstraint.constant = CGFloat(90)
             view.layoutIfNeeded()
             
             print("Doing Constraint")
         } else if  UIDevice.current.screenType == .iPhoneX {
             
-            rankConstraint.constant = CGFloat(120)
-            constraint.constant = CGFloat(-50)
-            priceConstraint.constant = CGFloat(60)
-            timeConstraint.constant  = CGFloat(50)
+            //rankConstraint.constant = CGFloat(120)
+           // constraint.constant = CGFloat(-50)
+           // priceConstraint.constant = CGFloat(60)
+          //  timeConstraint.constant  = CGFloat(50)
             view.layoutIfNeeded()
         }
     }

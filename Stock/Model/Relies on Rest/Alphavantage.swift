@@ -9,7 +9,7 @@
 import Foundation
 struct Alphavantage {
     
-    let url:String    = "https://www.alphavantage.co/query"
+    let url:String  = "https://www.alphavantage.co/query"
     var function: Function
     var apikey:String
     var market:String
@@ -35,9 +35,9 @@ struct Alphavantage {
 }
 
 public enum Function: String {
-   case daily   = "DIGITAL_CURRENCY_DAILY"
+   case daily    = "DIGITAL_CURRENCY_DAILY"
    case rate     = "CURRENCY_EXCHANGE_RATE"
-   case weekly   = "FX_WEEKLY"
-   case monthly  = "FX_MONTHLY"
+   case weekly   = "DIGITAL_CURRENCY_WEEKLY"
+   case monthly  = "DIGITAL_CURRENCY_MONTHLY"
 }
 

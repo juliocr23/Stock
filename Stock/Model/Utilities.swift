@@ -168,23 +168,23 @@ class Utilities {
         case 1_000_000_000...:
             var formatted = num / 1_000_000_000
             formatted = formatted.truncate(places: 2)
-            return "$\(sign)\(formatted) B"
+            return "\(sign)\(formatted) B"
             
         case 1_000_000...:
             var formatted = num / 1_000_000
             formatted = formatted.truncate(places: 2)
-            return "$\(sign)\(formatted) M"
+            return "\(sign)\(formatted) M"
             
         case 1_000...:
             var formatted = num / 1_000
             formatted = formatted.truncate(places: 2)
-            return "$\(sign)\(formatted) K"
+            return "\(sign)\(formatted) K"
             
         case 0...:
-            return "$\(number)"
+            return "\(number)"
             
         default:
-            return "$\(sign)\(number)"
+            return "\(sign)\(number)"
             
         }
     }
