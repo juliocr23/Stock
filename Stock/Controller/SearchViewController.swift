@@ -15,7 +15,7 @@ protocol SearchDelegate {
 
 class SearchViewController: UITableViewController, UISearchBarDelegate {
     
-    var cryptocurrencies = Cryptocurrency.availableCryptos
+    /*var cryptocurrencies = Cryptocurrency.availableCryptos
     
     var delegate : SearchDelegate?
 
@@ -80,7 +80,7 @@ class SearchViewController: UITableViewController, UISearchBarDelegate {
             cryptocurrencies = temp
         }
         tableView.reloadData()
-    }
+    }*/
 }
 
 extension String {

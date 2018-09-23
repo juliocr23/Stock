@@ -13,6 +13,7 @@ import SVProgressHUD
 import FirebaseFirestore
 import ChameleonFramework
 import SwiftSoup
+import CoreData
 
 
 /* KEYS
@@ -26,22 +27,10 @@ import SwiftSoup
 
 class ViewController: UIViewController, SearchDelegate {
     
-   // var crypto = CryptocurrencyDetailed(name: "Bitcoin", symbol: "BTC" )
-    
-    //Alphavantage
-   // var alphavantage: Alphavantage!
-    
-    
-    var crypto = Cryptocurrency(name: "Bitcoin", symbol: "BTC")
     var graphModel = Graph()
     
     var crypComp: CryptoCompare!
     var priceData  = PriceData()
-    
-    var db:FirestoreCrypto!
-    
-    var data: [String: FirestoreData]!
-    var sortedKeys:  [String]!
     
     var graphIndex = 0
     var days = 7
@@ -60,6 +49,9 @@ class ViewController: UIViewController, SearchDelegate {
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var percentChange: UILabel!
     
+    var crypArray = [Crypto]()
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -71,8 +63,70 @@ class ViewController: UIViewController, SearchDelegate {
         Utilities.getJsonRequest(url: crypComp.priceUrl,
                                  parameters: crypComp.priceRequest,
                                  function: getExchangeRate)
+        
+        //Utilities.getJsonRequest(url: "https://min-api.cryptocompare.com/data/all/coinlist", parameters: [:], function: test)
+        
+       /* loadData()
+        for i in crypArray {
+            print(i.name)
+        }*/
     }
     
+    /*func test(json: JSON) {
+       
+        let baseImgUrl = json["BaseImageUrl"].stringValue
+        let data = json["Data"]
+        
+        let dispatchGroup = DispatchGroup()
+        for i in data {
+            
+            let url = URL(string:baseImgUrl +  i.1["ImageUrl"].stringValue)
+            
+            dispatchGroup.enter()
+            DispatchQueue.global(qos: .userInteractive).async {
+                
+                do {
+                    let data      = try Data(contentsOf: url!)
+                    
+                    let crypto    = Crypto(context: self.context)
+                    crypto.img    = data;
+                    crypto.id     = i.1["Id"].stringValue
+                    crypto.name   = i.1["CoinName"].stringValue
+                    crypto.symbol = i.0
+                    self.crypArray.append(crypto)
+                    dispatchGroup.leave()
+                } catch {
+                    print(error)
+                }
+            }
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            self.saveData()
+            print("Data has been Save!")
+        }
+        
+      //  DispatchQueue.global().
+    } */
+    
+    func saveData(){
+        do {
+          try  context.save()
+        }
+        catch {
+            print("Error saving Context \(error)")
+        }
+    }
+    
+    func loadData(){
+        let request: NSFetchRequest<Crypto> = Crypto.fetchRequest()
+        do {
+          crypArray =   try  context.fetch(request)
+        }catch {
+            print("Error Fetching data from context \(error)")
+        }
+    }
+
     func getExchangeRate(json: JSON) {
         
         print(json)
@@ -114,7 +168,7 @@ class ViewController: UIViewController, SearchDelegate {
     
     //MARK: - Graphs Updates
     /****************************************************************************************/
-    func fillGraph(){
+    /*func fillGraph(){
         
         graphModel.data.removeAll()
         var temp = days
@@ -132,7 +186,7 @@ class ViewController: UIViewController, SearchDelegate {
             graphModel.data.append(value)
         }
         updateGraph()
-    }
+    }*/
     
     func updateGraph(){
         
@@ -145,7 +199,7 @@ class ViewController: UIViewController, SearchDelegate {
         candleStickGraph.dragEnabled = false
         candleStickGraph.legend.drawInside = false
         
-        setTitle()
+       // setTitle()
         SVProgressHUD.dismiss()
     }
     
@@ -165,7 +219,7 @@ class ViewController: UIViewController, SearchDelegate {
           
             print("one week")
             days = 7
-            fillGraph()
+           // fillGraph()
         }
     }
     
@@ -182,7 +236,7 @@ class ViewController: UIViewController, SearchDelegate {
             
             print("Three months")
             days = 90
-            fillGraph()
+          //  fillGraph()
         }
     }
     
@@ -199,7 +253,7 @@ class ViewController: UIViewController, SearchDelegate {
             
             print("six months")
             days = 182
-            fillGraph()
+          //  fillGraph()
         }
     }
     
@@ -216,7 +270,7 @@ class ViewController: UIViewController, SearchDelegate {
             
             print("9 months")
             days = 273
-            fillGraph()
+           // fillGraph()
         }
     }
     
@@ -233,7 +287,7 @@ class ViewController: UIViewController, SearchDelegate {
            
             print("one year")
             days = 365
-            fillGraph()
+           // fillGraph()
         }
     }
     
@@ -250,12 +304,12 @@ class ViewController: UIViewController, SearchDelegate {
            
             print("all time")
             days = -1
-            fillGraph()
+          //  fillGraph()
         }
     }
     
     //MARK: Check update
-    func checkUpdate(keys: [String], data: [String: FirestoreData]) {
+    /*func checkUpdate(keys: [String], data: [String: FirestoreData]) {
         
         self.sortedKeys = keys
         self.data = data
@@ -292,10 +346,10 @@ class ViewController: UIViewController, SearchDelegate {
             print("There is  no update filling graph")
             fillGraph()
         }
-    }
+    } */
     
     
-    func updateData(json: JSON){
+    /*func updateData(json: JSON){
         
         //Get parserJson as a Dictionary and sort keys
         let values = parseJsonAlphavantage(json: json)
@@ -315,10 +369,10 @@ class ViewController: UIViewController, SearchDelegate {
         data = values
         sortedKeys = keys
         fillGraph()
-    }
+    } */
     
     //MARK: parseAlphavantageJSON
-    func parseJsonAlphavantage(json: JSON)->[String: FirestoreData]{
+    /*func parseJsonAlphavantage(json: JSON)->[String: FirestoreData]{
         
         //Read Historical data from JSON
         var values  = [String: FirestoreData]()
@@ -333,11 +387,11 @@ class ViewController: UIViewController, SearchDelegate {
             values[key] = temp
         }
         return values
-    }
+    } */
     
-    func setTitle(){
+   /* func setTitle(){
            self.title =  db.crypto.name + " (" + db.crypto.symbol +  ")"
-    }
+    }*/
     
     //MARK: - SearchDelegate
     //******************************************************************************************\\
@@ -346,18 +400,8 @@ class ViewController: UIViewController, SearchDelegate {
         //Show progress
         SVProgressHUD.show()
         
-        setTitle()
-        
         //Clear graph
         candleStickGraph.clear()
-        
-        //Update alphavantage
-      //  alphavantage.symbol = symbol
-        
-        //Update Firebase info
-        db.crypto.name   = name
-        db.crypto.symbol = symbol
-        db.read(function: checkUpdate)
     }
     
     
@@ -365,11 +409,10 @@ class ViewController: UIViewController, SearchDelegate {
      /****************************************************************************************/
     override func prepare(for segue: UIStoryboardSegue, sender: Any?){
         
-        if segue.identifier == "goToSearch" {
-            
+      /*  if segue.identifier == "goToSearch" {
             let destinationVC =  segue.destination as! SearchViewController
             destinationVC.delegate = self
-        }
+        }*/
     }
     
   

@@ -8,18 +8,15 @@
 
 /* Begin PBXBuildFile section */
 		770BC7F72116131300BA9DEF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 770BC7F62116131200BA9DEF /* Assets.xcassets */; };
-		770FA64A2122595C004B5EC3 /* Cryptocurrency.swift in Sources */ = {isa = PBXBuildFile; fileRef = 770FA6492122595C004B5EC3 /* Cryptocurrency.swift */; };
 		770FA64E21226818004B5EC3 /* FavoriteViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 770FA64D21226818004B5EC3 /* FavoriteViewController.swift */; };
-		77335B1321335C86007C4976 /* CryptocurrencyDetailed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77335B1221335C86007C4976 /* CryptocurrencyDetailed.swift */; };
 		7744A5F5213090380064ECA2 /* Alphavantage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7744A5F4213090380064ECA2 /* Alphavantage.swift */; };
 		7744A5F7213093100064ECA2 /* market.csv in Resources */ = {isa = PBXBuildFile; fileRef = 7744A5F6213093100064ECA2 /* market.csv */; };
 		7744A5F9213093430064ECA2 /* currencies.csv in Resources */ = {isa = PBXBuildFile; fileRef = 7744A5F8213093430064ECA2 /* currencies.csv */; };
 		774D594921551EDC0058EAB9 /* CryptoCompare.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774D594821551EDC0058EAB9 /* CryptoCompare.swift */; };
 		774D594B2155230A0058EAB9 /* PriceData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774D594A2155230A0058EAB9 /* PriceData.swift */; };
 		774F14B7211A0F900057EA6F /* SearchViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774F14B6211A0F900057EA6F /* SearchViewController.swift */; };
+		776890902157DD75004A376C /* DataModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 7768908E2157DD75004A376C /* DataModel.xcdatamodeld */; };
 		77A4B5162131C568005BC299 /* Utilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77A4B5152131C568005BC299 /* Utilities.swift */; };
-		77B4503E21447CED00F4CF99 /* FirestoreCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77B4503D21447CED00F4CF99 /* FirestoreCrypto.swift */; };
-		77B45040214482E700F4CF99 /* FirestoreData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77B4503F214482E700F4CF99 /* FirestoreData.swift */; };
 		77D03B482104E5100081F591 /* Graph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77D03B472104E5100081F591 /* Graph.swift */; };
 		77D49E1F2111F0FE00D9B754 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 77D49E1E2111F0FE00D9B754 /* GoogleService-Info.plist */; };
 		77DFFC4020F95AF4004D591F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77DFFC3F20F95AF4004D591F /* AppDelegate.swift */; };
@@ -34,18 +31,15 @@
 		398971BB8D04DBFDBD6E2820 /* Pods-Stock.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Stock.debug.xcconfig"; path = "Pods/Target Support Files/Pods-Stock/Pods-Stock.debug.xcconfig"; sourceTree = "<group>"; };
 		6F4A5577A848FDD49AF5A70C /* Pods_Stock.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Stock.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		770BC7F62116131200BA9DEF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		770FA6492122595C004B5EC3 /* Cryptocurrency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cryptocurrency.swift; sourceTree = "<group>"; };
 		770FA64D21226818004B5EC3 /* FavoriteViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoriteViewController.swift; sourceTree = "<group>"; };
-		77335B1221335C86007C4976 /* CryptocurrencyDetailed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptocurrencyDetailed.swift; sourceTree = "<group>"; };
 		7744A5F4213090380064ECA2 /* Alphavantage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Alphavantage.swift; sourceTree = "<group>"; };
 		7744A5F6213093100064ECA2 /* market.csv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = market.csv; sourceTree = "<group>"; };
 		7744A5F8213093430064ECA2 /* currencies.csv */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = currencies.csv; sourceTree = "<group>"; };
 		774D594821551EDC0058EAB9 /* CryptoCompare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoCompare.swift; sourceTree = "<group>"; };
 		774D594A2155230A0058EAB9 /* PriceData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriceData.swift; sourceTree = "<group>"; };
 		774F14B6211A0F900057EA6F /* SearchViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchViewController.swift; sourceTree = "<group>"; };
+		7768908F2157DD75004A376C /* DataModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = DataModel.xcdatamodel; sourceTree = "<group>"; };
 		77A4B5152131C568005BC299 /* Utilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utilities.swift; sourceTree = "<group>"; };
-		77B4503D21447CED00F4CF99 /* FirestoreCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirestoreCrypto.swift; sourceTree = "<group>"; };
-		77B4503F214482E700F4CF99 /* FirestoreData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirestoreData.swift; sourceTree = "<group>"; };
 		77D03B472104E5100081F591 /* Graph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Graph.swift; sourceTree = "<group>"; };
 		77D49E1E2111F0FE00D9B754 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		77DFFC3C20F95AF4004D591F /* Stock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Stock.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -80,9 +74,6 @@
 		773629842147FB1D00D2FEDA /* Data Model */ = {
 			isa = PBXGroup;
 			children = (
-				770FA6492122595C004B5EC3 /* Cryptocurrency.swift */,
-				77335B1221335C86007C4976 /* CryptocurrencyDetailed.swift */,
-				77B4503F214482E700F4CF99 /* FirestoreData.swift */,
 				77D03B472104E5100081F591 /* Graph.swift */,
 				774D594A2155230A0058EAB9 /* PriceData.swift */,
 			);
@@ -93,7 +84,6 @@
 			isa = PBXGroup;
 			children = (
 				7744A5F4213090380064ECA2 /* Alphavantage.swift */,
-				77B4503D21447CED00F4CF99 /* FirestoreCrypto.swift */,
 				774D594821551EDC0058EAB9 /* CryptoCompare.swift */,
 			);
 			path = "Relies on Rest";
@@ -137,6 +127,7 @@
 				773629842147FB1D00D2FEDA /* Data Model */,
 				77D9C5E42141A5A500277173 /* Relies on Rest */,
 				77A4B5152131C568005BC299 /* Utilities.swift */,
+				7768908E2157DD75004A376C /* DataModel.xcdatamodeld */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -324,18 +315,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				774F14B7211A0F900057EA6F /* SearchViewController.swift in Sources */,
+				776890902157DD75004A376C /* DataModel.xcdatamodeld in Sources */,
 				77D03B482104E5100081F591 /* Graph.swift in Sources */,
 				77A4B5162131C568005BC299 /* Utilities.swift in Sources */,
-				77B45040214482E700F4CF99 /* FirestoreData.swift in Sources */,
 				77DFFC4220F95AF4004D591F /* ViewController.swift in Sources */,
 				774D594B2155230A0058EAB9 /* PriceData.swift in Sources */,
 				7744A5F5213090380064ECA2 /* Alphavantage.swift in Sources */,
-				77B4503E21447CED00F4CF99 /* FirestoreCrypto.swift in Sources */,
 				770FA64E21226818004B5EC3 /* FavoriteViewController.swift in Sources */,
-				77335B1321335C86007C4976 /* CryptocurrencyDetailed.swift in Sources */,
 				77DFFC4020F95AF4004D591F /* AppDelegate.swift in Sources */,
 				774D594921551EDC0058EAB9 /* CryptoCompare.swift in Sources */,
-				770FA64A2122595C004B5EC3 /* Cryptocurrency.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -533,6 +521,19 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCVersionGroup section */
+		7768908E2157DD75004A376C /* DataModel.xcdatamodeld */ = {
+			isa = XCVersionGroup;
+			children = (
+				7768908F2157DD75004A376C /* DataModel.xcdatamodel */,
+			);
+			currentVersion = 7768908F2157DD75004A376C /* DataModel.xcdatamodel */;
+			path = DataModel.xcdatamodeld;
+			sourceTree = "<group>";
+			versionGroupType = wrapper.xcdatamodel;
+		};
+/* End XCVersionGroup section */
 	};
 	rootObject = 77DFFC3420F95AF4004D591F /* Project object */;
 }
