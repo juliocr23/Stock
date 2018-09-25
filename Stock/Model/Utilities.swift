@@ -262,6 +262,23 @@ public extension UIDevice {
     }
 }
 
+public extension UIImage {
+    func resize(width: Int,height: Int) -> UIImage? {
+        
+        let size           = CGSize(width: width, height: height)
+        let hasAlpha       = true
+        let scale: CGFloat = 0.0
+        
+        UIGraphicsBeginImageContextWithOptions(size, !hasAlpha, scale)
+        self.draw(in: CGRect(origin: CGPoint.zero, size: size))
+        
+        let scaledImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        
+        return scaledImage
+    }
+}
+
 
 
 

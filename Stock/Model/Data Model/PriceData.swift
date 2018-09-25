@@ -19,6 +19,4 @@ struct PriceData {
     var volume24hr: Double  = 0
     var img: UIImage!
     var crypSymbol: String = ""
-    
-    
 }

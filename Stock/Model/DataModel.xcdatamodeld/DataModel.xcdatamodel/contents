@@ -5,8 +5,34 @@
         <attribute name="img" attributeType="Binary" syncable="YES"/>
         <attribute name="name" attributeType="String" syncable="YES"/>
         <attribute name="symbol" attributeType="String" syncable="YES"/>
+        <relationship name="historicaldatas" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="HistoricalData" inverseName="parentCrypto" inverseEntity="HistoricalData" syncable="YES"/>
+        <relationship name="prices" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Price" inverseName="parentCrypto" inverseEntity="Price" syncable="YES"/>
+    </entity>
+    <entity name="HistoricalData" representedClassName=".HistoricalData" syncable="YES" codeGenerationType="class">
+        <attribute name="close" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="dateType" optional="YES" attributeType="String" syncable="YES"/>
+        <attribute name="high" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="low" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="open" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="time" attributeType="Date" usesScalarValueType="NO" syncable="YES"/>
+        <attribute name="volumeFrom" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="volumeTo" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <relationship name="parentCrypto" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Crypto" inverseName="historicaldatas" inverseEntity="Crypto" syncable="YES"/>
+    </entity>
+    <entity name="Price" representedClassName=".Price" syncable="YES" codeGenerationType="class">
+        <attribute name="change24H" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="highDay" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="lastUpdate" attributeType="Date" usesScalarValueType="NO" syncable="YES"/>
+        <attribute name="lowDay" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="marketCap" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="price" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="supply" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="volume24H" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <relationship name="parentCrypto" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Crypto" inverseName="prices" inverseEntity="Crypto" syncable="YES"/>
     </entity>
     <elements>
-        <element name="Crypto" positionX="-54" positionY="-9" width="128" height="105"/>
+        <element name="Crypto" positionX="-110" positionY="-0" width="128" height="133"/>
+        <element name="HistoricalData" positionX="-351" positionY="117" width="128" height="178"/>
+        <element name="Price" positionX="70" positionY="117" width="128" height="178"/>
     </elements>
 </model>

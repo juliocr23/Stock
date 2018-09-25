@@ -27,16 +27,16 @@ import CoreData
 
 class ViewController: UIViewController, SearchDelegate {
     
-    var graphModel = Graph()
-    
+    //CryptoCompare
     var crypComp: CryptoCompare!
-    var priceData  = PriceData()
+    var priceData = PriceData()
+    var crypto: Crypto!
     
+    
+    //Graph
+    var graphModel = Graph()
     var graphIndex = 0
     var days = 7
-    
-    let rateApiKey       = "2Y3EEPZRVD37CT31"
-    let historicalApiKey = "Z8V5MX3CKIN23SDJ"
     
     @IBOutlet weak var marketCap: UILabel!
     @IBOutlet weak var volume: UILabel!
@@ -49,66 +49,41 @@ class ViewController: UIViewController, SearchDelegate {
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var percentChange: UILabel!
     
-    var crypArray = [Crypto]()
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-          //   db = FirestoreCrypto(name:"Bitcoin", symbol: "BTC")
-         //    abjustConstraints()
-        //SVProgressHUD.show()
+        //Start with Bitcoin as default value
+        crypComp = CryptoCompare(market: "USD", crypSymbol: "BTC", limit: .oneHour)
+        loadDataFromDB()
         
-        crypComp = CryptoCompare(market: "USD", crypSymbol: "BTC")
-        Utilities.getJsonRequest(url: crypComp.priceUrl,
-                                 parameters: crypComp.priceRequest,
-                                 function: getExchangeRate)
-        
-        //Utilities.getJsonRequest(url: "https://min-api.cryptocompare.com/data/all/coinlist", parameters: [:], function: test)
-        
-       /* loadData()
-        for i in crypArray {
-            print(i.name)
-        }*/
+        //Get Price,marketCap,volume, high, low and percentChg from CryptoCompare.
+        Utilities.getJsonRequest(url: crypComp.hisMinUrl,
+                                 parameters: crypComp.histRequest,
+                                 function: getOneHourHistory)
     }
     
-    /*func test(json: JSON) {
-       
-        let baseImgUrl = json["BaseImageUrl"].stringValue
-        let data = json["Data"]
-        
-        let dispatchGroup = DispatchGroup()
-        for i in data {
-            
-            let url = URL(string:baseImgUrl +  i.1["ImageUrl"].stringValue)
-            
-            dispatchGroup.enter()
-            DispatchQueue.global(qos: .userInteractive).async {
-                
-                do {
-                    let data      = try Data(contentsOf: url!)
-                    
-                    let crypto    = Crypto(context: self.context)
-                    crypto.img    = data;
-                    crypto.id     = i.1["Id"].stringValue
-                    crypto.name   = i.1["CoinName"].stringValue
-                    crypto.symbol = i.0
-                    self.crypArray.append(crypto)
-                    dispatchGroup.leave()
-                } catch {
-                    print(error)
-                }
-            }
-        }
-        
-        dispatchGroup.notify(queue: .main) {
-            self.saveData()
-            print("Data has been Save!")
-        }
-        
-      //  DispatchQueue.global().
-    } */
+    func getOneHourHistory(json: JSON) {
     
+        var data =  [HistoricalData]()
+        for value in json["Data"] {
+            
+            let newEntry          =  HistoricalData(context: context)
+            newEntry.open         =  value.1["open"].doubleValue
+            newEntry.high         =  value.1["high"].doubleValue
+            newEntry.low          =  value.1["low"].doubleValue
+            newEntry.close        =  value.1["close"].doubleValue
+            newEntry.volumeFrom   =  value.1["volumefrom"].doubleValue
+            newEntry.volumeTo     =  value.1["volumeto"].doubleValue
+            newEntry.time         =  Date(timeIntervalSince1970:  value.1["time"].doubleValue)
+            newEntry.parentCrypto =  crypto
+            data.append(newEntry)
+        }
+        saveData()
+    }
+    
+    //MARK: Database
     func saveData(){
         do {
           try  context.save()
@@ -118,20 +93,45 @@ class ViewController: UIViewController, SearchDelegate {
         }
     }
     
-    func loadData(){
+    func loadDataFromDB(){
+        
         let request: NSFetchRequest<Crypto> = Crypto.fetchRequest()
+        let predicate = NSPredicate(format:"symbol ==%@" , crypComp.crypSymbol)
+        request.predicate = predicate
         do {
-          crypArray =   try  context.fetch(request)
+            var temp = try context.fetch(request)
+            if temp.count > 0 {
+               crypto =  temp[0]
+            }
         }catch {
             print("Error Fetching data from context \(error)")
         }
     }
+    
+    func getImgFor(crypto: String) -> UIImage?{
+        
+        let request: NSFetchRequest<Crypto> = Crypto.fetchRequest()
+        
+        let predicate = NSPredicate(format:"symbol ==%@" , crypComp.crypSymbol)
+        request.predicate = predicate
+        
+        var temp: [Crypto]!
+        do {
+           temp =   try  context.fetch(request)
+        }catch {
+            print("Error Fetching data from context \(error)")
+        }
+        
+        let image =  UIImage(data: temp[0].img!)!
+        
+        return image.resize(width: 50, height: 50)
+    }
 
+    //MARK: Update price UI
     func getExchangeRate(json: JSON) {
-        
-        print(json)
+
+        //Extract data from json
         let data =  json["RAW"][crypComp.crypSymbol][crypComp.market]
-        
         priceData.price       = data["PRICE"].doubleValue
         priceData.supply      = data["SUPPLY"].doubleValue
         priceData.highDay     = data["HIGHDAY"].doubleValue
@@ -141,21 +141,24 @@ class ViewController: UIViewController, SearchDelegate {
         priceData.change24Hr  = data["CHANGEPCT24HOUR"].doubleValue
         priceData.crypSymbol  = json["DISPLAY"][crypComp.crypSymbol][crypComp.market]["FROMSYMBOL"].stringValue
         
+        //Update UI
         updateUI()
     }
     
     func updateUI(){
         
-      /*
-        icon.image = UIImage(named: db.crypto.name)
-        icon.backgroundColor = UIColor.flatBlue()*/
+        //Get Image for cryptocurrency
+        icon.image =  getImgFor(crypto: crypComp.crypSymbol)
+        icon.backgroundColor = UIColor.flatBlue()
         
+        //Check if change percent is negative or positive
         if priceData.change24Hr >= 0 {
             percentChange.textColor = UIColor.green
         } else {
             percentChange.textColor = UIColor.red
         }
         
+        //Display data on UI
         percentChange.text     = "(\(priceData.change24Hr.rounded(places: 2))%) 24H"
         price.text             = "$" + String(priceData.price)
         lowDay.text            = "$" + String(priceData.lowDay)
@@ -163,7 +166,6 @@ class ViewController: UIViewController, SearchDelegate {
         volume.text            = "$" + Utilities.getDisplayFormat(number: priceData.volume24hr)
         circulatingSupply.text =  priceData.crypSymbol + Utilities.getDisplayFormat(number: priceData.supply)
         marketCap.text         = "$" + Utilities.getDisplayFormat(number: priceData.marketCap)
-        
     }
     
     //MARK: - Graphs Updates
@@ -206,7 +208,7 @@ class ViewController: UIViewController, SearchDelegate {
     
     //MARK: - Graph Events
     /**************************************************************************/
-    @IBAction func oneWeek(_ sender: UIButton) {
+    @IBAction func oneHour(_ sender: UIButton) {
         
         if timeGraphButtons[graphIndex] != sender {
             
@@ -223,7 +225,7 @@ class ViewController: UIViewController, SearchDelegate {
         }
     }
     
-    @IBAction func threeMonth(_ sender: UIButton) {
+    @IBAction func oneDay(_ sender: UIButton) {
         
         if timeGraphButtons[graphIndex] != sender {
             
@@ -240,7 +242,7 @@ class ViewController: UIViewController, SearchDelegate {
         }
     }
     
-    @IBAction func sixMonth(_ sender: UIButton) {
+    @IBAction func oneWeek(_ sender: UIButton) {
         
         if timeGraphButtons[graphIndex] != sender {
             
@@ -257,7 +259,7 @@ class ViewController: UIViewController, SearchDelegate {
         }
     }
     
-    @IBAction func nineMonth(_ sender: UIButton) {
+    @IBAction func oneMonth(_ sender: UIButton) {
         
         if timeGraphButtons[graphIndex] != sender {
             
@@ -265,7 +267,7 @@ class ViewController: UIViewController, SearchDelegate {
             graphIndex = 3
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatPowderBlueColorDark()
             
-             candleStickGraph.clear()
+            candleStickGraph.clear()
             SVProgressHUD.show()
             
             print("9 months")
