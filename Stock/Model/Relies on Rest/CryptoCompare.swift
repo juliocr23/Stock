@@ -11,15 +11,13 @@ import Foundation
 struct CryptoCompare {
     var market: String
     var crypSymbol: String
-    var limit: Limit
+    var limit: String
     
-    var priceUrl: String {
-        return "https://min-api.cryptocompare.com/data/pricemultifull?"
-    }
-    
-    var hisMinUrl: String {
-        return "https://min-api.cryptocompare.com/data/histominute?"
-    }
+   var url: String
+   static let priceUrl  = "https://min-api.cryptocompare.com/data/pricemultifull?"
+   static let minUrl = "https://min-api.cryptocompare.com/data/histominute?"
+   static let hourUrl  = "https://min-api.cryptocompare.com/data/histohour?"
+   static let dailyUrl = "https://min-api.cryptocompare.com/data/histoday?"
     
     var priceRequest: [String: String] {
         return ["fsyms": crypSymbol,
@@ -30,15 +28,15 @@ struct CryptoCompare {
     var histRequest: [String: String] {
         return ["fsym": crypSymbol,
                "tsym": market,
-               "limit": limit.rawValue,
+               "limit": limit,
                "extraParams": "Stock"]
     }
-}
-
-enum Limit: String {
-    case oneHour  = "60"      //60 minutes
-    case oneDay   = "24"      // 24 hours
-    case oneWeek  = "7"       // seven days
-    case oneMonth = "30"      //30 days
-    case oneYear  = "365"
+    
+    var allDataRequest: [String: String] {
+        return ["fsym": crypSymbol,
+                "tsym": market,
+                "allData":"true",
+                "e": "CCCAGG",
+                "extraParams": "Stock"]
+    }
 }

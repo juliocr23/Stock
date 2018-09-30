@@ -25,18 +25,54 @@ import CoreData
  "EAOHWAS10TRK3G59"};
  */
 
+
+/*
+ 
+ Problem:
+ 
+ OneHour  ->Get data every minutes
+ oneDay   ->Get Data every Hour
+ oneWeek  ->Get Data daily
+ oneMonth ->Get Data daily
+ oneYear  ->Get Data daily
+ allTime  ->Get Data daily
+ 
+ 
+ if there is an update for the oneHour {
+    Delete OneHour Data.
+    Get New OneHour Data.
+ }
+ 
+ if there is an update for the oneDay {
+    Delete oneDay Data
+    Get new oneDay Data
+ }
+ 
+ if there is an update for daily {
+    Get new daily data
+    append daily data to DB
+ }
+ 
+ NOTE: Time interval from day through All are the same
+ 
+ TODO: Create Dabase for Crypto
+ 
+ Optimization: Pass the requet and the predicate to the function instead
+ 
+ */
+
 class ViewController: UIViewController, SearchDelegate {
     
     //CryptoCompare
     var crypComp: CryptoCompare!
     var priceData = PriceData()
     var crypto: Crypto!
-    
+    var data: [HistoricalData]!
+    var dateType: DateType = .mins
     
     //Graph
     var graphModel = Graph()
     var graphIndex = 0
-    var days = 7
     
     @IBOutlet weak var marketCap: UILabel!
     @IBOutlet weak var volume: UILabel!
@@ -51,57 +87,102 @@ class ViewController: UIViewController, SearchDelegate {
     
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
+    var predicate: NSPredicate {
+        get {
+         return NSPredicate(format: "(parentCrypto.id MATCHES %@) AND (dateType == %@)",
+                                       crypto.id! , dateType.rawValue)
+        }
+    }
+    
+    var dbLimit: Int = 0
+    var interval: Double = 3600
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
         //Start with Bitcoin as default value
-        crypComp = CryptoCompare(market: "USD", crypSymbol: "BTC", limit: .oneHour)
-        loadDataFromDB()
+        crypComp = CryptoCompare(market: "USD", crypSymbol: "BTC", limit: "60",url: CryptoCompare.minUrl)
+       
+        //Load default Crypto
+        loadCryptoFromDB()
         
-        //Get Price,marketCap,volume, high, low and percentChg from CryptoCompare.
-        Utilities.getJsonRequest(url: crypComp.hisMinUrl,
-                                 parameters: crypComp.histRequest,
-                                 function: getOneHourHistory)
+        loadHistoricalDataFromDB(predicate: predicate, checkUpdate: true, delete: true)
+        
+       /* Utilities.getJsonRequest(url: crypComp.url,
+                                 parameters: crypComp.allDataRequest,
+                                 function: getHistory) */
     }
     
-    func getOneHourHistory(json: JSON) {
-    
-        var data =  [HistoricalData]()
-        for value in json["Data"] {
-            
-            let newEntry          =  HistoricalData(context: context)
-            newEntry.open         =  value.1["open"].doubleValue
-            newEntry.high         =  value.1["high"].doubleValue
-            newEntry.low          =  value.1["low"].doubleValue
-            newEntry.close        =  value.1["close"].doubleValue
-            newEntry.volumeFrom   =  value.1["volumefrom"].doubleValue
-            newEntry.volumeTo     =  value.1["volumeto"].doubleValue
-            newEntry.time         =  Date(timeIntervalSince1970:  value.1["time"].doubleValue)
-            newEntry.parentCrypto =  crypto
-            data.append(newEntry)
-        }
-        saveData()
-    }
-    
-    //MARK: Database
+    //MARK: Database Methods
     func saveData(){
         do {
           try  context.save()
+          print("Data Save!")
         }
         catch {
             print("Error saving Context \(error)")
         }
     }
     
-    func loadDataFromDB(){
+    func deleteData(){
+        
+        print("Deleting Data")
+        for value in data {
+            context.delete(value)
+        }
+        saveData()
+    }
+    
+    func loadCryptoFromDB(){
         
         let request: NSFetchRequest<Crypto> = Crypto.fetchRequest()
         let predicate = NSPredicate(format:"symbol ==%@" , crypComp.crypSymbol)
         request.predicate = predicate
+        
         do {
             var temp = try context.fetch(request)
-            if temp.count > 0 {
+            if temp.count >= 0 {
                crypto =  temp[0]
+            } else {
+                print("Crypto NOT found!\(crypComp.crypSymbol)")
+            }
+        }catch {
+            print("Error Fetching data from context \(error)")
+        }
+    }
+    
+    func loadHistoricalDataFromDB(predicate: NSPredicate, limit: Int = 0, checkUpdate: Bool = false, delete: Bool = false){
+        
+        let request: NSFetchRequest<HistoricalData> = HistoricalData.fetchRequest()
+        request.predicate = predicate
+       
+        //Get last added values using a limit
+        if limit > 0 {
+            do {
+                let allElementsCount =  try context.count(for: request)
+                request.fetchLimit = limit
+                request.fetchOffset = allElementsCount - limit
+                request.returnsObjectsAsFaults = false
+            }catch {
+                print(error)
+            }
+        }
+        
+        //Sort the request
+        let sortDescriptr = NSSortDescriptor(key: "time", ascending: true)
+        request.sortDescriptors = [sortDescriptr]
+        
+        do {
+            data = try context.fetch(request)
+            
+            if checkUpdate {
+                if delete {
+                    checkForUpdate(interval: interval, delete: delete)
+                } else {
+                     checkForUpdate(interval: interval)
+                }
+            } else {
+                fillGraph()
             }
         }catch {
             print("Error Fetching data from context \(error)")
@@ -126,8 +207,37 @@ class ViewController: UIViewController, SearchDelegate {
         
         return image.resize(width: 50, height: 50)
     }
+    
+    func checkForUpdate(interval: Double, delete: Bool = false){
+        
+        let now = Date().timeIntervalSince1970
+        let lastUpdate = data[data.count-1].time!.timeIntervalSince1970
+        
+        if (now - lastUpdate) >= interval {
+            
+            print("Updating DB")
+            if delete {
+                deleteData()
+            } else {
+               let diffInDays = Calendar.current.dateComponents([.day],
+                                                               from: Date(timeIntervalSince1970: lastUpdate),
+                                                                 to: Date(timeIntervalSince1970: now)).day
+                
+                crypComp.limit = String(diffInDays!)
+                print("Print Different in days \(diffInDays!)")
+            }
+            
+            //Get new Data and update DB
+            Utilities.getJsonRequest(url: crypComp.url,
+                                     parameters: crypComp.histRequest,
+                                     function: getHistory)
+        } else {
+            print("Filling Graph")
+            fillGraph()
+        }
+    }
 
-    //MARK: Update price UI
+    //MARK: JSON Methods
     func getExchangeRate(json: JSON) {
 
         //Extract data from json
@@ -145,6 +255,30 @@ class ViewController: UIViewController, SearchDelegate {
         updateUI()
     }
     
+    func getHistory(json: JSON) {
+        
+        data =  [HistoricalData]()
+        for value in json["Data"] {
+            
+            let newEntry          =  HistoricalData(context: context)
+            newEntry.open         =  value.1["open"].doubleValue
+            newEntry.high         =  value.1["high"].doubleValue
+            newEntry.low          =  value.1["low"].doubleValue
+            newEntry.close        =  value.1["close"].doubleValue
+            newEntry.volumeFrom   =  value.1["volumefrom"].doubleValue
+            newEntry.volumeTo     =  value.1["volumeto"].doubleValue
+            newEntry.time         =  Date(timeIntervalSince1970:  value.1["time"].doubleValue)
+            newEntry.parentCrypto =  crypto
+            newEntry.dateType     =  dateType.rawValue
+            data.append(newEntry)
+        }
+        
+        saveData()
+        loadHistoricalDataFromDB(predicate: predicate, limit: dbLimit)
+    }
+    
+    
+    //MARK: UI Methods
     func updateUI(){
         
         //Get Image for cryptocurrency
@@ -168,31 +302,13 @@ class ViewController: UIViewController, SearchDelegate {
         marketCap.text         = "$" + Utilities.getDisplayFormat(number: priceData.marketCap)
     }
     
-    //MARK: - Graphs Updates
-    /****************************************************************************************/
-    /*func fillGraph(){
-        
-        graphModel.data.removeAll()
-        var temp = days
-        
-        //Read all Data from sorted keys
-        if temp == -1 || days > sortedKeys.count-1 {
-           temp = sortedKeys.count-1
-        }
-        
-        //Fill data for chart
-        for i in 0...temp {
-            
-            let key = sortedKeys[i]
-            let value = data[key]!
-            graphModel.data.append(value)
-        }
-        updateGraph()
-    }*/
     
-    func updateGraph(){
+    //MARK: - Graph Methods
+    /**************************************************************************/
+    
+    func fillGraph(){
         
-        candleStickGraph.data = graphModel.getData()
+        candleStickGraph.data = graphModel.getData(data: data)
         candleStickGraph.leftAxis.enabled = false
         candleStickGraph.rightAxis.enabled = false
         candleStickGraph.xAxis.enabled = false
@@ -201,27 +317,30 @@ class ViewController: UIViewController, SearchDelegate {
         candleStickGraph.dragEnabled = false
         candleStickGraph.legend.drawInside = false
         
-       // setTitle()
         SVProgressHUD.dismiss()
     }
     
-    
-    //MARK: - Graph Events
-    /**************************************************************************/
     @IBAction func oneHour(_ sender: UIButton) {
         
         if timeGraphButtons[graphIndex] != sender {
             
+            //Change the background color for selected button
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatBlue()
             graphIndex = 0
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatPowderBlueColorDark()
 
-           candleStickGraph.clear()
+            candleStickGraph.clear()
             SVProgressHUD.show()
-          
-            print("one week")
-            days = 7
-           // fillGraph()
+            
+            //Load one hour data from DB
+            dateType       = .mins
+            dbLimit        = 0
+            crypComp.url   = CryptoCompare.minUrl
+            crypComp.limit = "60"
+            interval       = 3600
+            
+            SVProgressHUD.show()
+            loadHistoricalDataFromDB(predicate: predicate, checkUpdate: true, delete: true)
         }
     }
     
@@ -233,12 +352,19 @@ class ViewController: UIViewController, SearchDelegate {
             graphIndex = 1
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatPowderBlueColorDark()
             
-           candleStickGraph.clear()
+            candleStickGraph.clear()
             SVProgressHUD.show()
             
-            print("Three months")
-            days = 90
-          //  fillGraph()
+            //Load one hour data from DB
+            dateType       = .hourly
+            dbLimit        = 0
+            crypComp.url   = CryptoCompare.hourUrl
+            crypComp.limit = "24"
+            interval       = 86400
+            
+            SVProgressHUD.show()
+            loadHistoricalDataFromDB(predicate: predicate, checkUpdate: true, delete: true)
+            
         }
     }
     
@@ -250,12 +376,17 @@ class ViewController: UIViewController, SearchDelegate {
             graphIndex = 2
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatPowderBlueColorDark()
             
-             candleStickGraph.clear()
+            candleStickGraph.clear()
             SVProgressHUD.show()
             
-            print("six months")
-            days = 182
-          //  fillGraph()
+            //Load one week data from DB
+            dateType     = .daily
+            dbLimit      = 7
+            crypComp.url = CryptoCompare.dailyUrl
+            interval     = 86400
+            
+            SVProgressHUD.show()
+            loadHistoricalDataFromDB(predicate: predicate, limit: dbLimit, checkUpdate: true)
         }
     }
     
@@ -270,9 +401,14 @@ class ViewController: UIViewController, SearchDelegate {
             candleStickGraph.clear()
             SVProgressHUD.show()
             
-            print("9 months")
-            days = 273
-           // fillGraph()
+            //Load one month data from DB
+            dateType     = .daily
+            dbLimit      = 31
+            crypComp.url = CryptoCompare.dailyUrl
+            interval     = 86400
+            
+            SVProgressHUD.show()
+            loadHistoricalDataFromDB(predicate: predicate, limit: dbLimit, checkUpdate: true)
         }
     }
     
@@ -284,12 +420,17 @@ class ViewController: UIViewController, SearchDelegate {
             graphIndex = 4
             timeGraphButtons[graphIndex].backgroundColor = UIColor.flatPowderBlueColorDark()
             
-           candleStickGraph.clear()
+            candleStickGraph.clear()
             SVProgressHUD.show()
-           
-            print("one year")
-            days = 365
-           // fillGraph()
+            
+            //Load one year data from DB
+            dateType     = .daily
+            dbLimit      = 365
+            crypComp.url = CryptoCompare.dailyUrl
+            interval     = 86400
+            
+            SVProgressHUD.show()
+            loadHistoricalDataFromDB(predicate: predicate, limit: dbLimit, checkUpdate: true)
         }
     }
     
@@ -303,97 +444,16 @@ class ViewController: UIViewController, SearchDelegate {
             
             candleStickGraph.clear()
             SVProgressHUD.show()
-           
-            print("all time")
-            days = -1
-          //  fillGraph()
+            
+            //Load one year data from DB
+            dateType     = .daily
+            crypComp.url = CryptoCompare.dailyUrl
+            interval     = 86400
+            
+            SVProgressHUD.show()
+            loadHistoricalDataFromDB(predicate: predicate, checkUpdate: true)
         }
     }
-    
-    //MARK: Check update
-    /*func checkUpdate(keys: [String], data: [String: FirestoreData]) {
-        
-        self.sortedKeys = keys
-        self.data = data
-        
-        var yesterday   = Utilities.getYesterday()
-        var lastEntry   = keys[keys.count-1]
-        
-        //Format yesterday and last entry into yyyyMMdd
-        yesterday = Utilities.yyyyMMdd(str: yesterday)
-        lastEntry = Utilities.yyyyMMdd(str: lastEntry)
-        
-        //Get year,month and day from yesterday
-        let (yearFromYesterday,
-             monthFromYesterday,
-             dayFromYesterday)  = Utilities.getYearMonthDayInt(text: yesterday)
-        
-        //Get year, month and day from last entry
-        let (yearFromLastEntry,
-             monthFromLastEntry,
-             dayFromLastEntry)  = Utilities.getYearMonthDayInt(text: lastEntry)
-        
-        
-        //Check if there is an update
-        let needAnUpdate =  yearFromYesterday  > yearFromLastEntry  ||
-            monthFromYesterday > monthFromLastEntry ||
-            dayFromYesterday   > dayFromLastEntry
-        
-        if needAnUpdate {
-           print("There is an update")
-           //Utilities.getJsonRequest(url: alphavantage.url,
-                                    // parameters: alphavantage.historicalData,
-                                   //  function: updateData)
-        } else {
-            print("There is  no update filling graph")
-            fillGraph()
-        }
-    } */
-    
-    
-    /*func updateData(json: JSON){
-        
-        //Get parserJson as a Dictionary and sort keys
-        let values = parseJsonAlphavantage(json: json)
-        let keys = values.keys.sorted()
-        
-        //Fill array with new values
-        var newData = [String:FirestoreData]()
-        for i in sortedKeys.count...keys.count-1 {
-          let key = keys[i]
-          newData[key] = values[key]
-        }
-        
-        //Write new values to database
-        db.write(data: newData)
-        
-        //Fill graph
-        data = values
-        sortedKeys = keys
-        fillGraph()
-    } */
-    
-    //MARK: parseAlphavantageJSON
-    /*func parseJsonAlphavantage(json: JSON)->[String: FirestoreData]{
-        
-        //Read Historical data from JSON
-        var values  = [String: FirestoreData]()
-        for (key,subJson) : (String, JSON) in json[json.startIndex].1 {
-            
-            var temp = FirestoreData()
-            temp.open  =  subJson["1b. open (USD)"].doubleValue
-            temp.high  =  subJson["2b. high (USD)"].doubleValue
-            temp.low   =  subJson["3b. low (USD)"].doubleValue
-            temp.close =  subJson["4b. close (USD)"].doubleValue
-            
-            values[key] = temp
-        }
-        return values
-    } */
-    
-   /* func setTitle(){
-           self.title =  db.crypto.name + " (" + db.crypto.symbol +  ")"
-    }*/
     
     //MARK: - SearchDelegate
     //******************************************************************************************\\
@@ -435,6 +495,11 @@ class ViewController: UIViewController, SearchDelegate {
             view.layoutIfNeeded()
         }
     }
-  
+}
+
+enum DateType: String {
+    case mins     = "mins"
+    case hourly   = "hourly"
+    case daily    = "daily"
 }
 
