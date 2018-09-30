@@ -27,11 +27,13 @@
         <attribute name="marketCap" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
         <attribute name="price" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
         <attribute name="supply" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
+        <attribute name="symbol" attributeType="String" syncable="YES"/>
+        <attribute name="volume24H" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES" syncable="YES"/>
         <relationship name="parentCrypto" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Crypto" inverseName="prices" inverseEntity="Crypto" syncable="YES"/>
     </entity>
     <elements>
         <element name="Crypto" positionX="-110" positionY="-0" width="128" height="133"/>
         <element name="HistoricalData" positionX="-351" positionY="117" width="128" height="178"/>
-        <element name="Price" positionX="70" positionY="117" width="128" height="163"/>
+        <element name="Price" positionX="70" positionY="117" width="128" height="195"/>
     </elements>
 </model>

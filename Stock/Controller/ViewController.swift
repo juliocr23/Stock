@@ -16,48 +16,9 @@ import SwiftSoup
 import CoreData
 
 
-/* KEYS
- {"3R4VKUEH0HOY3W4Y",
- "2Y3EEPZRVD37CT31",
- "Z8V5MX3CKIN23SDJ",
- "FUFRBDOZCXJLG5Z1",
- "K7GDFKDRDGZ5K3RS",
- "EAOHWAS10TRK3G59"};
- */
-
 
 /*
  
- Problem:
- 
- OneHour  ->Get data every minutes
- oneDay   ->Get Data every Hour
- oneWeek  ->Get Data daily
- oneMonth ->Get Data daily
- oneYear  ->Get Data daily
- allTime  ->Get Data daily
- 
- 
- if there is an update for the oneHour {
-    Delete OneHour Data.
-    Get New OneHour Data.
- }
- 
- if there is an update for the oneDay {
-    Delete oneDay Data
-    Get new oneDay Data
- }
- 
- if there is an update for daily {
-    Get new daily data
-    append daily data to DB
- }
- 
- NOTE: Time interval from day through All are the same
- 
- TODO: Create Dabase for Crypto
- 
- Optimization: Pass the requet and the predicate to the function instead
  
  */
 
@@ -65,9 +26,9 @@ class ViewController: UIViewController, SearchDelegate {
     
     //CryptoCompare
     var crypComp: CryptoCompare!
-    var priceData = PriceData()
+    var priceData: Price!
     var crypto: Crypto!
-    var data: [HistoricalData]!
+    var historicalData: [HistoricalData]!
     var dateType: DateType = .mins
     
     //Graph
@@ -100,18 +61,27 @@ class ViewController: UIViewController, SearchDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        //Add Gesture for swipe down
+        let swipeDown = UISwipeGestureRecognizer(target: self, action: #selector(self.respondToSwipeDown))
+        swipeDown.direction = UISwipeGestureRecognizerDirection.down
+        self.view.addGestureRecognizer(swipeDown)
+        
+        SVProgressHUD.show()
+        
         //Start with Bitcoin as default value
         crypComp = CryptoCompare(market: "USD", crypSymbol: "BTC", limit: "60",url: CryptoCompare.minUrl)
        
         //Load default Crypto
         loadCryptoFromDB()
         
+        //Load price Data
+        loadPriceData()
+        
+        //Load Historical Data
         loadHistoricalDataFromDB(predicate: predicate, checkUpdate: true, delete: true)
         
-       /* Utilities.getJsonRequest(url: crypComp.url,
-                                 parameters: crypComp.allDataRequest,
-                                 function: getHistory) */
     }
+    
     
     //MARK: Database Methods
     func saveData(){
@@ -123,16 +93,7 @@ class ViewController: UIViewController, SearchDelegate {
             print("Error saving Context \(error)")
         }
     }
-    
-    func deleteData(){
-        
-        print("Deleting Data")
-        for value in data {
-            context.delete(value)
-        }
-        saveData()
-    }
-    
+  
     func loadCryptoFromDB(){
         
         let request: NSFetchRequest<Crypto> = Crypto.fetchRequest()
@@ -151,6 +112,115 @@ class ViewController: UIViewController, SearchDelegate {
         }
     }
     
+    //MARK: Price Methods
+    func loadPriceData(){
+        let request: NSFetchRequest<Price> = Price.fetchRequest()
+        let predicate = NSPredicate(format: "(parentCrypto.id MATCHES %@)",crypto.id!)
+        request.predicate = predicate
+        
+        do {
+            var temp = try context.fetch(request)
+            if temp.count >= 0 {
+               priceData = temp[0]
+                
+                 //Check for 5 mins interval
+                checkPriceUpdate()
+            } else {
+                print("Price NOT found!\(crypComp.crypSymbol)")
+            }
+        }catch {
+            print("Error Fetching data from context \(error)")
+        }
+    }
+    
+    func checkPriceUpdate(){
+        
+       let last =  priceData.lastUpdate?.timeIntervalSince1970
+       let now  =  Date().timeIntervalSince1970
+        
+        if (now - last!) >= 300 { //There is an update
+            
+            print("Updating price")
+            
+            //Delete Data
+            context.delete(priceData)
+            saveData()
+            
+            //Get new Data
+            Utilities.getJsonRequest(url: CryptoCompare.priceUrl,
+                                     parameters:crypComp.priceRequest,
+                                     function: getExchangeRate)
+        } else {
+            updateUIForPriceData()
+        }
+    }
+    
+    func getImgFor(crypto: String) -> UIImage?{
+        
+        let request: NSFetchRequest<Crypto> = Crypto.fetchRequest()
+        
+        let predicate = NSPredicate(format:"symbol ==%@" , crypComp.crypSymbol)
+        request.predicate = predicate
+        
+        var temp: [Crypto]!
+        do {
+            temp =   try  context.fetch(request)
+        }catch {
+            print("Error Fetching data from context \(error)")
+        }
+        
+        let image =  UIImage(data: temp[0].img!)!
+        
+        return image.resize(width: 50, height: 50)
+    }
+    
+    func getExchangeRate(json: JSON) {
+        
+        //Extract data from json
+        let data  =  json["RAW"][crypComp.crypSymbol][crypComp.market]
+        priceData = Price(context: context)
+        
+        priceData.price        = data["PRICE"].doubleValue
+        priceData.supply       = data["SUPPLY"].doubleValue
+        priceData.highDay      = data["HIGHDAY"].doubleValue
+        priceData.lowDay       = data["LOWDAY"].doubleValue
+        priceData.volume24H    = data["TOTALVOLUME24HTO"].doubleValue
+        priceData.marketCap    = data["MKTCAP"].doubleValue
+        priceData.change24H    = data["CHANGEPCT24HOUR"].doubleValue
+        priceData.symbol       = json["DISPLAY"][crypComp.crypSymbol][crypComp.market]["FROMSYMBOL"].stringValue
+        priceData.lastUpdate   = Date()
+        priceData.parentCrypto = crypto
+        
+        saveData()
+        updateUIForPriceData()
+    }
+    
+    
+    func updateUIForPriceData(){
+        
+        //Get Image for cryptocurrency
+        icon.image =  getImgFor(crypto: crypComp.crypSymbol)
+        icon.backgroundColor = UIColor.flatBlue()
+        
+        //Check if change percent is negative or positive
+        if priceData.change24H >= 0 {
+            percentChange.textColor = UIColor.green
+        } else {
+            percentChange.textColor = UIColor.red
+        }
+        
+        //Display data on UI
+        percentChange.text     = "(\(priceData.change24H.rounded(places: 2))%) 24H"
+        price.text             = "$" + String(priceData.price)
+        lowDay.text            = "$" + String(priceData.lowDay)
+        highDay.text           = "$" + String(priceData.highDay)
+        volume.text            = "$" + Utilities.getDisplayFormat(number: priceData.volume24H)
+        circulatingSupply.text =  priceData.symbol! + Utilities.getDisplayFormat(number: priceData.supply)
+        marketCap.text         = "$" + Utilities.getDisplayFormat(number: priceData.marketCap)
+    }
+    
+    
+    //MARK: Historical Data Methods
     func loadHistoricalDataFromDB(predicate: NSPredicate, limit: Int = 0, checkUpdate: Bool = false, delete: Bool = false){
         
         let request: NSFetchRequest<HistoricalData> = HistoricalData.fetchRequest()
@@ -173,13 +243,15 @@ class ViewController: UIViewController, SearchDelegate {
         request.sortDescriptors = [sortDescriptr]
         
         do {
-            data = try context.fetch(request)
+            historicalData = try context.fetch(request)
+            
+            print("Size of Data:\(historicalData.count) ")
             
             if checkUpdate {
                 if delete {
-                    checkForUpdate(interval: interval, delete: delete)
+                    checkHistoricalDataUpdate(interval: interval, delete: delete)
                 } else {
-                     checkForUpdate(interval: interval)
+                     checkHistoricalDataUpdate(interval: interval)
                 }
             } else {
                 fillGraph()
@@ -189,42 +261,28 @@ class ViewController: UIViewController, SearchDelegate {
         }
     }
     
-    func getImgFor(crypto: String) -> UIImage?{
+    func checkHistoricalDataUpdate(interval: Double, delete: Bool = false){
         
-        let request: NSFetchRequest<Crypto> = Crypto.fetchRequest()
-        
-        let predicate = NSPredicate(format:"symbol ==%@" , crypComp.crypSymbol)
-        request.predicate = predicate
-        
-        var temp: [Crypto]!
-        do {
-           temp =   try  context.fetch(request)
-        }catch {
-            print("Error Fetching data from context \(error)")
-        }
-        
-        let image =  UIImage(data: temp[0].img!)!
-        
-        return image.resize(width: 50, height: 50)
-    }
-    
-    func checkForUpdate(interval: Double, delete: Bool = false){
-        
+        //Get the time interval for now and the last from DB
         let now = Date().timeIntervalSince1970
-        let lastUpdate = data[data.count-1].time!.timeIntervalSince1970
+        let lastUpdate = historicalData[historicalData.count-1].time!.timeIntervalSince1970
         
+        //Interval specify the time requiered for update.
+        //If delta is greater than or equal to interval
+        //there is an update.
         if (now - lastUpdate) >= interval {
             
-            print("Updating DB")
+            //Check if it has to delete data
             if delete {
-                deleteData()
-            } else {
+                deleteHistoricalData()
+            }
+            else { //Otherwise check the differece in days and use that number
+                   //To request the missing data.
+                
                let diffInDays = Calendar.current.dateComponents([.day],
                                                                from: Date(timeIntervalSince1970: lastUpdate),
                                                                  to: Date(timeIntervalSince1970: now)).day
-                
                 crypComp.limit = String(diffInDays!)
-                print("Print Different in days \(diffInDays!)")
             }
             
             //Get new Data and update DB
@@ -236,28 +294,10 @@ class ViewController: UIViewController, SearchDelegate {
             fillGraph()
         }
     }
-
-    //MARK: JSON Methods
-    func getExchangeRate(json: JSON) {
-
-        //Extract data from json
-        let data =  json["RAW"][crypComp.crypSymbol][crypComp.market]
-        priceData.price       = data["PRICE"].doubleValue
-        priceData.supply      = data["SUPPLY"].doubleValue
-        priceData.highDay     = data["HIGHDAY"].doubleValue
-        priceData.lowDay      = data["LOWDAY"].doubleValue
-        priceData.volume24hr  = data["TOTALVOLUME24HTO"].doubleValue
-        priceData.marketCap   = data["MKTCAP"].doubleValue
-        priceData.change24Hr  = data["CHANGEPCT24HOUR"].doubleValue
-        priceData.crypSymbol  = json["DISPLAY"][crypComp.crypSymbol][crypComp.market]["FROMSYMBOL"].stringValue
-        
-        //Update UI
-        updateUI()
-    }
     
     func getHistory(json: JSON) {
         
-        data =  [HistoricalData]()
+        historicalData =  [HistoricalData]()
         for value in json["Data"] {
             
             let newEntry          =  HistoricalData(context: context)
@@ -270,45 +310,15 @@ class ViewController: UIViewController, SearchDelegate {
             newEntry.time         =  Date(timeIntervalSince1970:  value.1["time"].doubleValue)
             newEntry.parentCrypto =  crypto
             newEntry.dateType     =  dateType.rawValue
-            data.append(newEntry)
+            historicalData.append(newEntry)
         }
-        
         saveData()
         loadHistoricalDataFromDB(predicate: predicate, limit: dbLimit)
     }
     
-    
-    //MARK: UI Methods
-    func updateUI(){
-        
-        //Get Image for cryptocurrency
-        icon.image =  getImgFor(crypto: crypComp.crypSymbol)
-        icon.backgroundColor = UIColor.flatBlue()
-        
-        //Check if change percent is negative or positive
-        if priceData.change24Hr >= 0 {
-            percentChange.textColor = UIColor.green
-        } else {
-            percentChange.textColor = UIColor.red
-        }
-        
-        //Display data on UI
-        percentChange.text     = "(\(priceData.change24Hr.rounded(places: 2))%) 24H"
-        price.text             = "$" + String(priceData.price)
-        lowDay.text            = "$" + String(priceData.lowDay)
-        highDay.text           = "$" + String(priceData.highDay)
-        volume.text            = "$" + Utilities.getDisplayFormat(number: priceData.volume24hr)
-        circulatingSupply.text =  priceData.crypSymbol + Utilities.getDisplayFormat(number: priceData.supply)
-        marketCap.text         = "$" + Utilities.getDisplayFormat(number: priceData.marketCap)
-    }
-    
-    
-    //MARK: - Graph Methods
-    /**************************************************************************/
-    
     func fillGraph(){
         
-        candleStickGraph.data = graphModel.getData(data: data)
+        candleStickGraph.data = graphModel.getData(data: historicalData)
         candleStickGraph.leftAxis.enabled = false
         candleStickGraph.rightAxis.enabled = false
         candleStickGraph.xAxis.enabled = false
@@ -318,6 +328,15 @@ class ViewController: UIViewController, SearchDelegate {
         candleStickGraph.legend.drawInside = false
         
         SVProgressHUD.dismiss()
+    }
+    
+    func deleteHistoricalData(){
+        
+        print("Deleting Data")
+        for value in historicalData {
+            context.delete(value)
+        }
+        saveData()
     }
     
     @IBAction func oneHour(_ sender: UIButton) {
@@ -445,7 +464,6 @@ class ViewController: UIViewController, SearchDelegate {
             candleStickGraph.clear()
             SVProgressHUD.show()
             
-            //Load one year data from DB
             dateType     = .daily
             crypComp.url = CryptoCompare.dailyUrl
             interval     = 86400
@@ -493,6 +511,21 @@ class ViewController: UIViewController, SearchDelegate {
            // priceConstraint.constant = CGFloat(60)
           //  timeConstraint.constant  = CGFloat(50)
             view.layoutIfNeeded()
+        }
+    }
+    
+    @objc func respondToSwipeDown(){
+        
+        SVProgressHUD.show()
+        checkPriceUpdate()
+        
+        //Check Graph updates
+        if graphIndex == 0 {
+            checkHistoricalDataUpdate(interval: 3600, delete: true)
+        } else if graphIndex == 1 {
+              checkHistoricalDataUpdate(interval: 86400, delete: true)
+        } else {
+             checkHistoricalDataUpdate(interval: 86400)
         }
     }
 }
